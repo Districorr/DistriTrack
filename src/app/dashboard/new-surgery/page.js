@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL, UNABRIDGED, AND CORRECTED) ---
+// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL, RESPONSIVE, WITH URL PARSING) ---
 
 'use client'
 
@@ -49,11 +49,10 @@ function NewMaterialModal({ isOpen, onClose, onSave }) {
   );
 }
 
-// --- Componente principal que ahora contiene la lógica de lectura de URL ---
 function NewSurgeryPageContent() {
   const router = useRouter();
   const supabase = createClient();
-  const searchParams = useSearchParams(); // Hook para leer los parámetros
+  const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState({ patient_name: '', doctor_name: '', institution: '', client: '', surgery_date: '', provider: '', transport_details: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,7 +69,6 @@ function NewSurgeryPageContent() {
   const [noteData, setNoteData] = useState({ description: '', quantity: 1, observations: '' });
   const [isUrgent, setIsUrgent] = useState(false);
 
-  // --- NUEVO: useEffect para poblar el formulario desde la URL ---
   useEffect(() => {
     const initialData = {
       patient_name: searchParams.get('patient_name') || '',
@@ -251,7 +249,7 @@ function NewSurgeryPageContent() {
         </header>
 
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <form onSubmit={handleSubmit} className="p-8 bg-white rounded-lg shadow-md space-y-8">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8 bg-white rounded-lg shadow-md space-y-8">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div><label htmlFor="patient_name" className="block text-sm font-medium text-gray-800">Nombre del Paciente</label><input type="text" name="patient_name" id="patient_name" required value={formData.patient_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500"/></div>
@@ -359,8 +357,6 @@ function NewSurgeryPageContent() {
   );
 }
 
-// --- Componente de página que usa Suspense ---
-// Suspense es necesario porque useSearchParams puede suspender el renderizado.
 export default function NewSurgeryPage() {
   return (
     <Suspense fallback={<div className="flex justify-center items-center min-h-screen">Cargando...</div>}>
