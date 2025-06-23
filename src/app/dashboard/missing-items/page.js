@@ -1,63 +1,53 @@
-// --- START OF FILE: src/app/dashboard/missing-items/MissingItemsClient.js ---
+// --- START OF FILE: src/app/dashboard/missing-items/page.js (FIXED PRERENDER ERROR) ---
 
-'use client'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import MissingItemsClient from './MissingItemsClient'
 
-import { useState, useMemo } from 'react';
+export default async function MissingItemsPage() {
+  const supabase = createClient();
 
-export default function MissingItemsClient({ initialItems }) {
-  const [items, setItems] = useState(initialItems);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return redirect('/login');
+  }
 
-  const filteredItems = useMemo(() => {
-    if (!searchTerm) return items;
-    const lowercasedTerm = searchTerm.toLowerCase();
-    return items.filter(item => 
-      item.materials.name.toLowerCase().includes(lowercasedTerm) ||
-      item.materials.code?.toLowerCase().includes(lowercasedTerm) ||
-      item.surgeries.patient_name?.toLowerCase().includes(lowercasedTerm)
-    );
-  }, [searchTerm, items]);
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'admin') {
+    return redirect('/dashboard');
+  }
+
+  const { data: missingItems, error } = await supabase
+    .from('surgery_materials')
+    .select(`
+      id,
+      quantity_requested,
+      materials (name, code),
+      surgeries (patient_name, surgery_date)
+    `)
+    .eq('is_missing', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching missing items:", error);
+    // Si hay un error, no podemos continuar, pero nos aseguramos de no pasar 'undefined'
+  }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Buscar material, paciente..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-1/3 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad Faltante</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pedido (Paciente)</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Cirugía</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredItems.length > 0 ? (
-              filteredItems.map(item => (
-                <tr key={item.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.materials.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.materials.code}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{item.quantity_requested}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{item.surgeries.patient_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(item.surgeries.surgery_date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="text-center py-10 text-gray-500">No hay materiales marcados como faltantes.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+    <div className="p-4 sm:p-6 lg:p-8 bg-gray-100 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Materiales Faltantes</h1>
+            <p className="mt-1 text-gray-600">Lista de todos los materiales marcados como faltantes en los pedidos.</p>
+          </div>
+          <Link href="/dashboard" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+            ← Volver al Pipeline
+          </Link>
+        </div>
+        {/* --- CORREGIDO: Nos aseguramos de pasar siempre un array, incluso si la consulta falla --- */}
+        <MissingItemsClient initialItems={missingItems || []} />
       </div>
     </div>
   );
