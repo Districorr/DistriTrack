@@ -1,9 +1,9 @@
-// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL AND WITH UX IMPROVEMENT) ---
+// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL, UNABRIDGED, AND CORRECTED) ---
 
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
@@ -49,9 +49,11 @@ function NewMaterialModal({ isOpen, onClose, onSave }) {
   );
 }
 
-export default function NewSurgeryPage() {
+// --- Componente principal que ahora contiene la lógica de lectura de URL ---
+function NewSurgeryPageContent() {
   const router = useRouter();
   const supabase = createClient();
+  const searchParams = useSearchParams(); // Hook para leer los parámetros
 
   const [formData, setFormData] = useState({ patient_name: '', doctor_name: '', institution: '', client: '', surgery_date: '', provider: '', transport_details: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +69,39 @@ export default function NewSurgeryPage() {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteData, setNoteData] = useState({ description: '', quantity: 1, observations: '' });
   const [isUrgent, setIsUrgent] = useState(false);
+
+  // --- NUEVO: useEffect para poblar el formulario desde la URL ---
+  useEffect(() => {
+    const initialData = {
+      patient_name: searchParams.get('patient_name') || '',
+      doctor_name: searchParams.get('doctor_name') || '',
+      institution: searchParams.get('institution') || '',
+      client: searchParams.get('client') || '',
+      surgery_date: searchParams.get('surgery_date') || '',
+    };
+    setFormData(prev => ({ ...prev, ...initialData }));
+
+    const materialsParam = searchParams.get('materiales');
+    if (materialsParam) {
+      try {
+        const decodedMaterials = decodeURIComponent(materialsParam);
+        const materialsArray = JSON.parse(decodedMaterials);
+        if (Array.isArray(materialsArray)) {
+          const newMaterials = materialsArray.map(item => ({
+            id: `note_${Date.now()}_${Math.random()}`,
+            type: 'note',
+            free_text_description: item.description || '',
+            quantity_requested: item.quantity || 1,
+            observations: item.observations || '',
+          }));
+          setSelectedMaterials(newMaterials);
+        }
+      } catch (e) {
+        console.error("Error al procesar los materiales de la URL:", e);
+        setError("Hubo un error al leer los materiales proporcionados en la URL.");
+      }
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -304,24 +339,7 @@ export default function NewSurgeryPage() {
                       <tr><td colSpan="4" className="py-4 text-center text-gray-500">No se han agregado materiales.</td></tr>
                     ) : (
                       selectedMaterials.map(m => (
-                        <tr key={m.id}>
-                          <td className="py-4 pl-4 pr-3 text-sm sm:pl-0">
-                            {m.type === 'formal' ? (
-                              <>
-                                <div className="font-medium text-gray-900">{m.name}</div>
-                                <div className="text-gray-500">{m.code}</div>
-                              </>
-                            ) : (
-                              <div className="italic text-orange-700">
-                                <div className="font-medium">{m.free_text_description}</div>
-                                <div className="text-xs font-normal">(Nota provisoria)</div>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-4 text-sm font-medium text-gray-900">{m.quantity_requested}</td>
-                          <td className="px-3 py-4 text-sm text-gray-500">{m.observations || '-'}</td>
-                          <td className="py-4 pl-3 pr-4 text-right text-sm font-medium"><button type="button" onClick={() => handleRemoveMaterial(m.id)} className="text-red-600 hover:text-red-800 font-semibold">Eliminar</button></td>
-                        </tr>
+                        <tr key={m.id}><td className="py-4 pl-4 pr-3 text-sm sm:pl-0">{m.type === 'formal' ? (<><div className="font-medium text-gray-900">{m.name}</div><div className="text-gray-500">{m.code}</div></>) : (<div className="italic text-orange-700"><div className="font-medium">{m.free_text_description}</div><div className="text-xs font-normal">(Nota provisoria)</div></div>)}</td><td className="px-3 py-4 text-sm font-medium text-gray-900">{m.quantity_requested}</td><td className="px-3 py-4 text-sm text-gray-500">{m.observations || '-'}</td><td className="py-4 pl-3 pr-4 text-right text-sm font-medium"><button type="button" onClick={() => handleRemoveMaterial(m.id)} className="text-red-600 hover:text-red-800 font-semibold">Eliminar</button></td></tr>
                       ))
                     )}
                   </tbody>
@@ -338,5 +356,15 @@ export default function NewSurgeryPage() {
         </main>
       </div>
     </>
+  );
+}
+
+// --- Componente de página que usa Suspense ---
+// Suspense es necesario porque useSearchParams puede suspender el renderizado.
+export default function NewSurgeryPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen">Cargando...</div>}>
+      <NewSurgeryPageContent />
+    </Suspense>
   );
 }
