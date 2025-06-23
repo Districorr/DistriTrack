@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/SmartSearchBar.js (FIXED LINTING ERROR) ---
+// --- START OF FILE: src/app/dashboard/SmartSearchBar.js (DEFINITIVE LINTING FIX) ---
 
 'use client'
 
@@ -28,7 +28,10 @@ export default function SmartSearchBar({ searchQuery, setSearchQuery }) {
   }, [searchRef]);
 
   const handleTagClick = (tag) => {
-    setSearchQuery(prev => `${prev} ${tag}`.trim());
+    // Si la etiqueta termina en ':', añade un espacio para que el usuario pueda escribir.
+    // Si no, añade un espacio al final para la siguiente etiqueta.
+    const newText = tag.endsWith(':') ? tag : `${tag} `;
+    setSearchQuery(prev => `${prev} ${newText}`.trim());
   };
 
   return (
@@ -39,7 +42,6 @@ export default function SmartSearchBar({ searchQuery, setSearchQuery }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
-          // --- CORREGIDO: Se usan comillas simples para el ejemplo y se elimina la lógica de parseo ---
           placeholder="Buscar por paciente, médico, material..."
           className="w-full pl-4 pr-10 py-2.5 bg-white/10 text-white rounded-lg placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
         />
@@ -50,8 +52,16 @@ export default function SmartSearchBar({ searchQuery, setSearchQuery }) {
 
       {isFocused && (
         <div className="absolute top-full mt-2 w-full bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-2xl p-4 border border-white/10">
-          <h3 className="text-sm font-semibold text-blue-200 mb-3">Sugerencias</h3>
-          <p className="text-xs text-blue-300">Usa la búsqueda para un filtro rápido o el botón "Filtros" para opciones avanzadas.</p>
+          <h3 className="text-sm font-semibold text-blue-200 mb-3">Sugerencias de Búsqueda</h3>
+          <div className="flex flex-wrap gap-2">
+            {/* --- CORREGIDO: Se eliminan las comillas dobles de los textos de las etiquetas --- */}
+            <SearchTag text='estado:Iniciado' onClick={handleTagClick} />
+            <SearchTag text='urgente' onClick={handleTagClick} />
+            <SearchTag text='faltantes' onClick={handleTagClick} />
+            <SearchTag text='provisorio' onClick={handleTagClick} />
+            <SearchTag text='paciente:' onClick={handleTagClick} />
+            <SearchTag text='medico:' onClick={handleTagClick} />
+          </div>
         </div>
       )}
     </div>
