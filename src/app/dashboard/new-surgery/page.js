@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL AND CORRECTED) ---
+// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL AND WITH UX IMPROVEMENT) ---
 
 'use client'
 
@@ -66,8 +66,6 @@ export default function NewSurgeryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteData, setNoteData] = useState({ description: '', quantity: 1, observations: '' });
-
-  // --- NUEVO: Estado para el tag "Urgente" ---
   const [isUrgent, setIsUrgent] = useState(false);
 
   const handleChange = (e) => {
@@ -168,7 +166,6 @@ export default function NewSurgeryPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No se pudo obtener la información del usuario.');
 
-      // --- MODIFICADO: Se añade 'is_urgent' al objeto a insertar ---
       const surgeryPayload = { 
         ...formData, 
         is_urgent: isUrgent, 
@@ -233,7 +230,6 @@ export default function NewSurgeryPage() {
               <div><label htmlFor="provider" className="block text-sm font-medium text-gray-800">Proveedor a Solicitar</label><input type="text" name="provider" id="provider" value={formData.provider} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500"/></div>
               <div className="md:col-span-2"><label htmlFor="transport_details" className="block text-sm font-medium text-gray-800">Detalles del Transporte</label><textarea name="transport_details" id="transport_details" rows="3" value={formData.transport_details} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500"></textarea></div>
               
-              {/* --- NUEVO: Checkbox para marcar como urgente --- */}
               <div className="md:col-span-2 flex items-center space-x-3">
                 <input
                   id="is_urgent"
@@ -253,8 +249,13 @@ export default function NewSurgeryPage() {
               <h3 className="text-xl font-semibold text-gray-900">Materiales Solicitados</h3>
               
               <div className="relative">
-                <label htmlFor="search_material" className="block text-sm font-medium text-gray-800">1. Buscar Material por código o nombre</label>
-                <input type="text" id="search_material" value={searchTerm} onChange={handleSearchChange} placeholder="Escriba para buscar..." className="mt-1 block w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500"/>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="search_material" className="block text-sm font-medium text-gray-800">1. Buscar Material por código o nombre</label>
+                  <button type="button" onClick={() => setIsModalOpen(true)} className="px-3 py-1 text-xs font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">
+                    + Crear Nuevo
+                  </button>
+                </div>
+                <input type="text" id="search_material" value={searchTerm} onChange={handleSearchChange} placeholder="Escriba para buscar..." className="block w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500"/>
                 {isLoadingSearch && <p className="text-sm text-gray-500 mt-1">Buscando...</p>}
                 {searchResults.length > 0 && (
                   <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
@@ -266,7 +267,6 @@ export default function NewSurgeryPage() {
                 {searchTerm.length >= 3 && !isLoadingSearch && searchResults.length === 0 && (
                   <div className="absolute z-10 w-full mt-1 p-4 bg-white border border-gray-200 rounded-md shadow-lg">
                     <p className="text-center text-gray-500">No se encontraron resultados.</p>
-                    <button type="button" onClick={() => setIsModalOpen(true)} className="w-full mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold">+ Crear Nuevo Material</button>
                   </div>
                 )}
               </div>
