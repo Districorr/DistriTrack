@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/Pipeline.js (FULL, VERIFIED, AND UNABRIDGED) ---
+// --- START OF FILE: src/app/dashboard/Pipeline.js (FULL, RESPONSIVE, AND DEFINITIVE) ---
 
 'use client'
 
@@ -10,7 +10,6 @@ import SurgeryDetailModal from './SurgeryDetailModal'
 import { createClient } from '@/lib/supabase/client'
 import { exportPipelineToPdf, exportPipelineToExcel } from '@/lib/exportUtils'
 
-// --- Función de ayuda para convertir HEX a RGBA, previene errores de renderizado ---
 const hexToRgba = (hex, alpha) => {
   if (!hex || !/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
     return 'rgba(107, 114, 128, 1)'; // Devuelve un gris por defecto si el HEX es inválido
@@ -27,7 +26,7 @@ function PipelineColumn({ status, surgeries, isAdmin, onCardClick, onColumnFilte
   const { setNodeRef } = useDroppable({ id: status.id });
 
   return (
-    <div ref={setNodeRef} className="flex-shrink-0 w-72 border-l border-gray-300 first:border-l-0">
+    <div ref={setNodeRef} className="w-full md:w-72 flex-shrink-0 md:border-l md:border-gray-300 md:first:border-l-0">
       <div className="h-full flex flex-col bg-gray-100">
         <div 
           className="p-3 border-t-4"
@@ -36,18 +35,8 @@ function PipelineColumn({ status, surgeries, isAdmin, onCardClick, onColumnFilte
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm text-gray-800">{status.name}</h2>
             <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => onColumnFilterClick(status.name)} 
-                title={`Filtrar por "${status.name}"`} 
-                className="text-gray-400 hover:text-indigo-600 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 12.414V17a1 1 0 01-1.447.894l-2-1A1 1 0 018 16v-3.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-                </svg>
-              </button>
-              <span className="px-2 py-0.5 text-xs font-semibold text-gray-600 bg-gray-200 rounded-full">
-                {surgeries.length}
-              </span>
+              <button onClick={() => onColumnFilterClick(status.name)} title={`Filtrar por "${status.name}"`} className="text-gray-400 hover:text-indigo-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 12.414V17a1 1 0 01-1.447.894l-2-1A1 1 0 018 16v-3.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" /></svg></button>
+              <span className="px-2 py-0.5 text-xs font-semibold text-gray-600 bg-gray-200 rounded-full">{surgeries.length}</span>
             </div>
           </div>
         </div>
@@ -75,6 +64,7 @@ const Pipeline = forwardRef(({ statuses, initialSurgeries, userRole, filters, on
   const isAdmin = userRole === 'admin';
   const supabase = createClient();
   const pipelineContainerRef = useRef(null);
+  const [activeColumnIndex, setActiveColumnIndex] = useState(0);
 
   useImperativeHandle(ref, () => ({
     handleExport(format) {
@@ -248,10 +238,11 @@ const Pipeline = forwardRef(({ statuses, initialSurgeries, userRole, filters, on
     }
   };
 
-  const scroll = (scrollOffset) => {
-    if (pipelineContainerRef.current) {
-      pipelineContainerRef.current.scrollBy({ left: scrollOffset, behavior: 'smooth' });
-    }
+  const goToNextColumn = () => {
+    setActiveColumnIndex(prevIndex => Math.min(prevIndex + 1, statuses.length - 1));
+  };
+  const goToPrevColumn = () => {
+    setActiveColumnIndex(prevIndex => Math.max(prevIndex - 1, 0));
   };
 
   if (!isClient) return null;
@@ -272,22 +263,32 @@ const Pipeline = forwardRef(({ statuses, initialSurgeries, userRole, filters, on
       />
       <div className="relative h-full">
         <DndContext onDragStart={(e) => setActiveSurgery(e.active.data.current?.surgery || null)} onDragEnd={handleDragEnd}>
-          <div ref={pipelineContainerRef} className="flex h-full overflow-x-auto pb-4 scrollbar-hide">
-            {statuses.map(status => (
-              <PipelineColumn
-                key={status.id}
-                status={status}
-                surgeries={filteredSurgeries.filter(s => s.status_id === status.id)}
-                isAdmin={isAdmin}
-                onCardClick={setSelectedSurgery}
-                onColumnFilterClick={onColumnFilterClick}
-              />
-            ))}
+          <div ref={pipelineContainerRef} className="h-full overflow-hidden md:overflow-x-auto md:pb-4 md:scrollbar-hide">
+            <div 
+              className="h-full flex transition-transform duration-300 ease-in-out md:transform-none"
+              style={{ transform: `translateX(-${activeColumnIndex * 100}%)` }}
+            >
+              {statuses.map(status => (
+                <PipelineColumn
+                  key={status.id}
+                  status={status}
+                  surgeries={filteredSurgeries.filter(s => s.status_id === status.id)}
+                  isAdmin={isAdmin}
+                  onCardClick={setSelectedSurgery}
+                  onColumnFilterClick={onColumnFilterClick}
+                />
+              ))}
+            </div>
           </div>
           <DragOverlay>{activeSurgery ? <div className="shadow-2xl rounded-lg"><SurgeryCard surgery={activeSurgery} /></div> : null}</DragOverlay>
         </DndContext>
-        <button onClick={() => scroll(-400)} className="absolute top-1/2 -left-2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow-lg z-20 transition-all hover:scale-110"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
-        <button onClick={() => scroll(400)} className="absolute top-1/2 -right-2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow-lg z-20 transition-all hover:scale-110"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
+        
+        <button onClick={goToPrevColumn} disabled={activeColumnIndex === 0} className="absolute top-1/2 -left-2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow-lg z-20 transition-all hover:scale-110 disabled:opacity-0 md:hidden">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <button onClick={goToNextColumn} disabled={activeColumnIndex === statuses.length - 1} className="absolute top-1/2 -right-2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow-lg z-20 transition-all hover:scale-110 disabled:opacity-0 md:hidden">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </button>
       </div>
     </>
   );
