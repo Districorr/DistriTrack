@@ -1,3 +1,5 @@
+// --- START OF FILE: src/middleware.js (MODIFIED FOR SMART REDIRECT) ---
+
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
@@ -17,38 +19,14 @@ export async function middleware(request) {
           return request.cookies.get(name)?.value
         },
         set(name, value, options) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          request.cookies.set({ name, value, ...options, })
+          response = NextResponse.next({ request: { headers: request.headers, }, })
+          response.cookies.set({ name, value, ...options, })
         },
         remove(name, options) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          request.cookies.set({ name, value: '', ...options, })
+          response = NextResponse.next({ request: { headers: request.headers, }, })
+          response.cookies.set({ name, value: '', ...options, })
         },
       },
     }
@@ -58,13 +36,28 @@ export async function middleware(request) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // Si el usuario no está logueado y no está en la página de login, redirigir a login
-  if (!session && request.nextUrl.pathname !== '/login') {
-    return NextResponse.redirect(new URL('/login', request.url))
+  const { pathname, search } = request.nextUrl;
+
+  // --- LÓGICA DE REDIRECCIÓN MEJORADA ---
+
+  // Si el usuario no está logueado y no está en la página de login
+  if (!session && pathname !== '/login') {
+    // 1. Construimos la URL a la que el usuario quería ir.
+    // Incluye la ruta y todos los parámetros de búsqueda (ej: /dashboard/new-surgery?patient_name=...)
+    const redirectTo = pathname + search;
+
+    // 2. Creamos la URL de login y le añadimos la URL original como un parámetro.
+    // Usamos encodeURIComponent para asegurar que caracteres especiales como '?' y '&' no rompan la URL.
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect_to', encodeURIComponent(redirectTo));
+    
+    // 3. Redirigimos al usuario a la página de login con la información guardada.
+    return NextResponse.redirect(loginUrl);
   }
 
   // Si el usuario está logueado y está en la página de login, redirigir al dashboard
-  if (session && request.nextUrl.pathname === '/login') {
+  // (Esta lógica no cambia)
+  if (session && pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
