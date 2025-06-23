@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/new-surgery/page.js (MODIFIED) ---
+// --- START OF FILE: src/app/dashboard/new-surgery/page.js (FULL AND CORRECTED) ---
 
 'use client'
 
@@ -154,8 +154,16 @@ export default function NewSurgeryPage() {
     }
 
     try {
-      const { data: initialStatus } = await supabase.from('pipeline_statuses').select('id, name').eq('name', 'Iniciado').single();
-      if (!initialStatus) throw new Error('No se pudo encontrar el estado inicial del pipeline.');
+      const { data: initialStatus, error: statusError } = await supabase
+        .from('pipeline_statuses')
+        .select('id, name')
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (statusError || !initialStatus) {
+        throw new Error('No se pudo encontrar el estado inicial del pipeline.');
+      }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No se pudo obtener la información del usuario.');
@@ -182,7 +190,7 @@ export default function NewSurgeryPage() {
       const { error: materialsError } = await supabase.from('surgery_materials').insert(materialsToInsert);
       if (materialsError) throw materialsError;
 
-      const { error: historyError } = await supabase.from('surgery_history').insert({ surgery_id: newSurgery.id, user_id: user.id, change_description: 'Pedido creado en estado "Iniciado".', details: { action: 'create', status: initialStatus.name } });
+      const { error: historyError } = await supabase.from('surgery_history').insert({ surgery_id: newSurgery.id, user_id: user.id, change_description: `Pedido creado en estado "${initialStatus.name}".`, details: { action: 'create', status: initialStatus.name } });
       if (historyError) {
         console.error("Error al guardar en el historial:", historyError);
       }
