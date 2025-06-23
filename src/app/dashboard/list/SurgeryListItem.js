@@ -1,66 +1,97 @@
+// --- START OF FILE: src/app/dashboard/list/SurgeryListItem.js (FULL AND ROBUST) ---
+
 'use client'
 
-import { useState } from 'react'
-import StatusDropdown from './StatusDropdown' // Importamos nuestro nuevo componente
+import { useMemo } from 'react';
 
+// --- NUEVO: Función de ayuda para convertir HEX a RGBA, previene errores de renderizado ---
+const hexToRgba = (hex, alpha) => {
+  if (!hex || !/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+    return 'rgba(107, 114, 128, 0.15)'; // Devuelve un gris por defecto si el HEX es inválido
+  }
+  let c = hex.substring(1).split('');
+  if (c.length === 3) {
+    c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+  }
+  c = '0x' + c.join('');
+  return `rgba(${(c >> 16) & 255}, ${(c >> 8) & 255}, ${c & 255}, ${alpha})`;
+};
+
+// --- Componente de Ayuda: Tag visual para la lista ---
+const ListTag = ({ text, colorClasses }) => (
+  <span className={`inline-block mr-1.5 mb-1.5 px-2 py-0.5 text-xs font-semibold rounded-full ${colorClasses}`}>
+    {text}
+  </span>
+);
+
+// --- Componente de Ayuda: Formateador de Fecha ---
 const formatDate = (dateString) => {
   if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'N/A';
   const [year, month, day] = dateString.split('-');
   return `${day}/${month}/${year}`;
 };
 
-export default function SurgeryListItem({ surgery, allStatuses, onStatusChange }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function SurgeryListItem({ surgery, onRowClick }) {
 
-  const firstMaterial = surgery.surgery_materials?.[0]?.materials;
-  const currentStatus = surgery.status;
+  // --- Lógica para calcular los tags y el título (reutilizada de SurgeryCard) ---
+  const { tags, title, subtitle } = useMemo(() => {
+    const calculatedTags = [];
+    if (surgery.is_urgent) calculatedTags.push({ text: 'URGENTE', classes: 'bg-red-100 text-red-700' });
+    if (surgery.is_rework) calculatedTags.push({ text: 'REPROCESO', classes: 'bg-purple-100 text-purple-700' });
+    if (surgery.surgery_materials.some(m => m.is_missing)) calculatedTags.push({ text: 'FALTANTES', classes: 'bg-yellow-100 text-yellow-800' });
+    if (surgery.surgery_materials.some(m => !m.materials && m.free_text_description)) calculatedTags.push({ text: 'PROVISORIO', classes: 'bg-blue-100 text-blue-700' });
+
+    let mainTitle = 'Pedido sin Título';
+    let subTitle = `Paciente: ${surgery.patient_name || 'No especificado'}`;
+    const firstFormal = surgery.surgery_materials.find(m => m.materials);
+    const firstProvisional = surgery.surgery_materials.find(m => m.free_text_description);
+
+    if (firstFormal) {
+      mainTitle = firstFormal.materials.name;
+    } else if (firstProvisional) {
+      mainTitle = firstProvisional.free_text_description;
+    } else if (surgery.patient_name) {
+      mainTitle = surgery.patient_name;
+      subTitle = 'Pedido sin materiales asignados';
+    }
+    
+    return { tags: calculatedTags, title: mainTitle, subtitle: subTitle };
+  }, [surgery]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-2 transition-all duration-300 hover:shadow-md">
-      <div className="flex items-center p-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-        <div className="w-1/3"><p className="font-bold text-gray-900">{firstMaterial?.name || 'Pedido sin material'}</p><p className="text-sm text-gray-600">{firstMaterial?.code}</p></div>
-        <div className="w-1/4"><p className="text-sm font-medium text-gray-900">{surgery.patient_name}</p></div>
-        <div className="w-1/4"><p className="text-sm text-gray-600">{surgery.institution}</p></div>
-        <div className="w-1/6 text-center">
-          <span className="px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: currentStatus?.color + '20', color: currentStatus?.color }}>{currentStatus?.name || 'N/A'}</span>
-        </div>
-        <div className="w-auto flex justify-end pl-4"><svg className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></div>
+    <div 
+      onClick={onRowClick}
+      className="flex items-center p-3 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors last:border-b-0"
+    >
+      {/* Columna 1: Pedido */}
+      <div className="w-2/5 pl-2">
+        <p className="font-semibold text-sm text-gray-900 truncate" title={title}>{title}</p>
+        <p className="text-xs text-gray-500 truncate" title={subtitle}>{subtitle}</p>
       </div>
 
-      {isOpen && (
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-2">Detalles del Pedido</h4>
-              <div className="space-y-1 text-sm">
-                <p><strong className="font-medium text-gray-900">Médico:</strong> <span className="text-gray-700">{surgery.doctor_name}</span></p>
-                <p><strong className="font-medium text-gray-900">Fecha CX:</strong> <span className="text-gray-700">{formatDate(surgery.surgery_date)}</span></p>
-                <p><strong className="font-medium text-gray-900">Creado por:</strong> <span className="text-gray-700">{surgery.creator?.full_name}</span></p>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-2">Materiales</h4>
-              <ul className="list-disc list-inside text-sm space-y-1">
-                {surgery.surgery_materials.map(item => (
-                  <li key={item.id} className="text-gray-700"><span className="font-medium text-gray-900">{item.quantity_requested}x</span> - {item.materials.name}</li>
-                ))}
-              </ul>
-            </div>
-            {/* --- CAMBIO: Usamos el nuevo componente StatusDropdown --- */}
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-2">Acciones</h4>
-              <label className="text-sm font-medium text-gray-900">Cambiar Estado:</label>
-              <div className="mt-1">
-                <StatusDropdown 
-                  currentStatus={currentStatus}
-                  allStatuses={allStatuses}
-                  onStatusChange={(newStatusId) => onStatusChange(surgery.id, newStatusId)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Columna 2: Fecha de Cirugía */}
+      <div className="w-1/5 text-sm text-gray-600">{formatDate(surgery.surgery_date)}</div>
+
+      {/* Columna 3: Estado */}
+      <div className="w-1/5">
+        <span 
+          className="px-2 py-1 text-xs font-semibold rounded-full" 
+          style={{ 
+            backgroundColor: hexToRgba(surgery.status?.color, 0.15),
+            color: surgery.status?.color || '#4B5563'
+          }}
+        >
+          {surgery.status?.name || 'N/A'}
+        </span>
+      </div>
+
+      {/* Columna 4: Etiquetas */}
+      <div className="w-1/5 flex flex-wrap items-center">
+        {tags.length > 0 
+          ? tags.map(tag => <ListTag key={tag.text} text={tag.text} colorClasses={tag.classes} />)
+          : <span className="text-xs text-gray-400">-</span>
+        }
+      </div>
     </div>
   );
 }

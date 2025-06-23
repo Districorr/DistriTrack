@@ -1,116 +1,159 @@
+// --- START OF FILE: src/app/dashboard/page.js (FULL AND WITH EXPORT MENU INTEGRATION) ---
+
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import LogoutButton from '../LogoutButton'
+import Pipeline from './Pipeline'
+import SmartSearchBar from './SmartSearchBar' 
+import SettingsMenu from './SettingsMenu'
+import PipelineSettingsModal from './PipelineSettingsModal'
+import FilterModal from './FilterModal'
 
-// Función de formato de fecha (YYYY-MM-DD -> DD/MM/YYYY)
-const formatDate = (dateString) => {
-  if (!dateString || !/^\d{4}-\d{2}-\d{2}/.test(dateString)) return 'N/A';
-  const datePart = dateString.split('T')[0];
-  const [year, month, day] = datePart.split('-');
-  return `${day}/${month}/${year}`;
+// --- Componente para el Menú de Exportación ---
+const ExportMenu = ({ onExport, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+  useEffect(() => {
+    const handleClickOutside = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setIsOpen(false); };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+  return (
+    <div className="relative" ref={menuRef}>
+      <button onClick={() => setIsOpen(!isOpen)} disabled={disabled} className="flex-shrink-0 px-4 py-2.5 text-sm font-semibold bg-white/10 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Exportar
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5">
+          <div className="py-1">
+            <a href="#" onClick={(e) => { e.preventDefault(); onExport('pdf'); setIsOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Pipeline como Imagen (PDF)</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); onExport('excel'); setIsOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Datos como Excel</a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
-export default function MissingItemsPage() {
-  const [missingItems, setMissingItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+const UserIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-200" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>);
+
+export default function DashboardPage() {
+  const [statuses, setStatuses] = useState([]);
+  const [allStatusesForSettings, setAllStatusesForSettings] = useState([]);
+  const [surgeries, setSurgeries] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [user, setUser] = useState(null);
+  
+  const [loading, setLoading] = useState(true);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterOptions, setFilterOptions] = useState({ doctors: [], institutions: [], creators: [], statuses: [], clients: [], providers: [], materials: [] });
+
+  const pipelineRef = useRef(null);
 
   useEffect(() => {
     const supabase = createClient();
-    async function getMissingItems() {
+    async function getInitialData() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      if (!user) { setLoading(false); return; }
 
-      // Consulta para obtener los materiales marcados como faltantes.
-      // Hacemos un JOIN implícito con 'surgeries' y 'materials' para obtener toda la info.
-      const { data, error } = await supabase
-        .from('surgery_materials')
-        .select(`
-          id,
-          quantity_requested,
-          surgeries (
-            id,
-            patient_name,
-            updated_at,
-            creator:profiles (full_name)
-          ),
-          materials (
-            name,
-            code,
-            brand
-          )
-        `)
-        .eq('is_missing', true) // El filtro clave: solo donde is_missing es true.
-        .order('updated_at', { referencedTable: 'surgeries', ascending: false }); // Ordena por la fecha de actualización del pedido.
+      const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(userProfile);
 
-      if (error) {
-        console.error("Error fetching missing items:", error);
-      } else {
-        setMissingItems(data || []);
-      }
+      const [statusesRes, allStatusesRes, surgeriesRes, creatorsRes, materialsRes] = await Promise.all([
+        supabase.from('pipeline_statuses').select('*').eq('is_visible', true).order('sort_order', { ascending: true }),
+        userProfile?.role === 'admin' ? supabase.from('pipeline_statuses').select('*').order('sort_order', { ascending: true }) : Promise.resolve({ data: [] }),
+        supabase.from('surgeries').select(`*, creator:profiles(full_name), status:pipeline_statuses(*), surgery_materials(id, is_missing, quantity_requested, observations, free_text_description, materials(id, name, code, brand)), surgery_history(*, user:profiles(full_name)), surgery_notes(*, user:profiles(full_name))`),
+        supabase.from('profiles').select('id, full_name'),
+        supabase.from('materials').select('id, name')
+      ]);
+
+      setStatuses(statusesRes.data || []);
+      setAllStatusesForSettings(allStatusesRes.data || []);
+      const allSurgeries = surgeriesRes.data || [];
+      setSurgeries(allSurgeries);
+
+      const uniqueDoctors = [...new Set(allSurgeries.map(s => s.doctor_name).filter(Boolean))];
+      const uniqueInstitutions = [...new Set(allSurgeries.map(s => s.institution).filter(Boolean))];
+      const uniqueClients = [...new Set(allSurgeries.map(s => s.client).filter(Boolean))];
+      const uniqueProviders = [...new Set(allSurgeries.map(s => s.provider).filter(Boolean))];
+      
+      setFilterOptions({
+        doctors: uniqueDoctors.sort(),
+        institutions: uniqueInstitutions.sort(),
+        creators: creatorsRes.data || [],
+        statuses: statusesRes.data || [],
+        clients: uniqueClients.sort(),
+        providers: uniqueProviders.sort(),
+        materials: materialsRes.data || []
+      });
+      
       setLoading(false);
     }
-    getMissingItems();
+    getInitialData();
   }, []);
 
+  const handleColumnFilterClick = (statusName) => {
+    setSearchQuery(`estado:"${statusName}" `);
+  };
+
+  const activeFilterCount = Object.keys(activeFilters).length;
+
   return (
-    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      <header className="flex items-center justify-between p-4 bg-white shadow-md gap-4 flex-shrink-0">
-        <div className="flex items-center space-x-4">
-          <div className="text-2xl font-bold text-gray-900">DistriTrack</div>
-          <Link href="/dashboard" className="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 whitespace-nowrap">Volver al Pipeline</Link>
-          <Link href="/dashboard/list" className="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 whitespace-nowrap">Vista de Lista</Link>
-        </div>
-        <h2 className="text-xl font-semibold text-red-600">Materiales Faltantes</h2>
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-800 hidden md:inline">{user?.email || 'Cargando...'}</span>
-          <LogoutButton />
-        </div>
-      </header>
-      
-      <main className="flex-1 p-4 overflow-y-auto">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          {loading ? (
-            <p className="text-center text-gray-500">Buscando materiales faltantes...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material Faltante</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pedido Asociado (Paciente)</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Actualización del Pedido</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsable del Pedido</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {missingItems.length === 0 ? (
-                    <tr><td colSpan="5" className="py-8 text-center text-gray-500">¡Excelente! No hay materiales marcados como faltantes.</td></tr>
-                  ) : (
-                    missingItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{item.materials.name}</div>
-                          <div className="text-sm text-gray-500">{item.materials.code} - {item.materials.brand}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-red-600">{item.quantity_requested}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{item.surgeries.patient_name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.surgeries.updated_at)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.surgeries.creator.full_name}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+    <>
+      <PipelineSettingsModal initialStatuses={allStatusesForSettings} isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+      <FilterModal isOpen={isFilterModalOpen} onClose={() => setIsFilterModalOpen(false)} options={filterOptions} onApply={setActiveFilters} activeFilters={activeFilters} />
+
+      <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+        <header className="relative z-20 flex items-center justify-between p-3 bg-[#1E3A8A] text-white shadow-lg flex-shrink-0">
+          <div className="flex items-center space-x-4">
+            <div className="text-2xl font-bold tracking-wider">DistriTrack</div>
+          </div>
+          
+          <div className="flex-grow max-w-2xl flex items-center space-x-2">
+            <SmartSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+            <button onClick={() => setIsFilterModalOpen(true)} className="relative flex-shrink-0 px-4 py-2.5 text-sm font-semibold bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
+              Filtros
+              {activeFilterCount > 0 && ( <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-xs">{activeFilterCount}</span> )}
+            </button>
+            <ExportMenu 
+              onExport={(format) => pipelineRef.current?.handleExport(format)} 
+              disabled={loading} 
+            />
+          </div>
+          
+          <div className="flex items-center space-x-5">
+            <Link href="/dashboard/new-surgery" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-500 rounded-md hover:bg-indigo-600 whitespace-nowrap">+ Agregar Pedido</Link>
+            <div className="h-6 w-px bg-blue-500/50"></div>
+            <SettingsMenu profile={profile} onOpenSettings={() => setIsSettingsModalOpen(true)} />
+            <div className="flex items-center space-x-2">
+              <UserIcon />
+              <span className="text-sm font-medium text-blue-100">{profile?.full_name || user?.email}</span>
             </div>
+          </div>
+        </header>
+        
+        <main className="flex-1 p-4 overflow-y-hidden">
+          {loading ? (
+            <div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div></div>
+          ) : (
+            <Pipeline 
+              ref={pipelineRef}
+              statuses={statuses} 
+              initialSurgeries={surgeries} 
+              userRole={profile?.role}
+              filters={{ ...activeFilters, general: searchQuery }} 
+              onColumnFilterClick={handleColumnFilterClick}
+            />
           )}
-        </div>
-      </main>
-    </div>
-  );
+        </main>
+      </div>
+    </>
+  )
 }

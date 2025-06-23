@@ -1,3 +1,5 @@
+/* --- START OF FILE: src/app/globals.css (MODIFIED) --- */
+
 @import "tailwindcss";
 
 :root {
@@ -23,4 +25,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  
+  /* --- NUEVO: Fondo sutil para la aplicación --- */
+  background-color: #f0f2f5; /* Un gris muy claro */
+  background-image: radial-gradient(#d1d5db 0.5px, transparent 0.5px);
+  background-size: 15px 15px;
 }

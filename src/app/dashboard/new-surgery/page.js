@@ -1,3 +1,5 @@
+// --- START OF FILE: src/app/dashboard/new-surgery/page.js (MODIFIED) ---
+
 'use client'
 
 import { useState } from 'react'
@@ -5,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-// --- Componente para el Modal de Nuevo Material con ESTILOS CORREGIDOS ---
 function NewMaterialModal({ isOpen, onClose, onSave }) {
   const [newMaterial, setNewMaterial] = useState({ code: '', name: '', brand: '', specification: '' });
   const [isSaving, setIsSaving] = useState(false);
@@ -30,13 +31,10 @@ function NewMaterialModal({ isOpen, onClose, onSave }) {
   };
 
   return (
-    // Contenedor del modal: fondo semitransparente y centrado
     <div className="fixed inset-0 bg-gray-800 bg-opacity-75 z-50 flex justify-center items-center p-4 transition-opacity">
-      {/* Panel del modal: fondo blanco, sombra y bordes redondeados */}
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all">
         <h3 className="text-xl font-bold mb-4 text-gray-900">Crear Nuevo Material</h3>
         <div className="space-y-4">
-          {/* Inputs con placeholders legibles */}
           <input type="text" placeholder="Código (opcional)" value={newMaterial.code} onChange={(e) => setNewMaterial({...newMaterial, code: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500" />
           <input type="text" placeholder="* Nombre / Descripción" required value={newMaterial.name} onChange={(e) => setNewMaterial({...newMaterial, name: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500" />
           <input type="text" placeholder="Marca / Proveedor" value={newMaterial.brand} onChange={(e) => setNewMaterial({...newMaterial, brand: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500" />
@@ -51,8 +49,6 @@ function NewMaterialModal({ isOpen, onClose, onSave }) {
   );
 }
 
-
-// --- Componente Principal de la Página ---
 export default function NewSurgeryPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -68,6 +64,11 @@ export default function NewSurgeryPage() {
   const [quantity, setQuantity] = useState(1);
   const [observations, setObservations] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteData, setNoteData] = useState({ description: '', quantity: 1, observations: '' });
+
+  // --- NUEVO: Estado para el tag "Urgente" ---
+  const [isUrgent, setIsUrgent] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -78,6 +79,7 @@ export default function NewSurgeryPage() {
     const term = e.target.value;
     setSearchTerm(term);
     setMaterialToAdd(null);
+    setShowNoteInput(false);
     if (term.length < 3) {
       setSearchResults([]);
       return;
@@ -92,6 +94,7 @@ export default function NewSurgeryPage() {
     setMaterialToAdd(material);
     setSearchTerm('');
     setSearchResults([]);
+    setShowNoteInput(false);
   };
 
   const handleConfirmAddMaterial = () => {
@@ -100,14 +103,35 @@ export default function NewSurgeryPage() {
       alert("La cantidad debe ser al menos 1.");
       return;
     }
-    if (!selectedMaterials.find(m => m.id === materialToAdd.id)) {
-      setSelectedMaterials([...selectedMaterials, { ...materialToAdd, quantity_requested: quantity, observations: observations }]);
+    if (!selectedMaterials.find(m => m.type === 'formal' && m.id === materialToAdd.id)) {
+      setSelectedMaterials([...selectedMaterials, { ...materialToAdd, quantity_requested: quantity, observations: observations, type: 'formal' }]);
     } else {
       alert("Este material ya ha sido agregado al pedido.");
     }
     setMaterialToAdd(null);
     setQuantity(1);
     setObservations('');
+  };
+
+  const handleConfirmAddNote = () => {
+    if (!noteData.description.trim()) {
+      alert("La descripción de la nota no puede estar vacía.");
+      return;
+    }
+    if (noteData.quantity < 1) {
+      alert("La cantidad debe ser al menos 1.");
+      return;
+    }
+    const newNote = {
+      id: `note_${Date.now()}`,
+      free_text_description: noteData.description,
+      quantity_requested: noteData.quantity,
+      observations: noteData.observations,
+      type: 'note'
+    };
+    setSelectedMaterials([...selectedMaterials, newNote]);
+    setNoteData({ description: '', quantity: 1, observations: '' });
+    setShowNoteInput(false);
   };
 
   const handleRemoveMaterial = (materialId) => {
@@ -136,25 +160,30 @@ export default function NewSurgeryPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No se pudo obtener la información del usuario.');
 
-      const { data: newSurgery, error: surgeryError } = await supabase.from('surgeries').insert([{ ...formData, status_id: initialStatus.id, creator_id: user.id }]).select().single();
+      // --- MODIFICADO: Se añade 'is_urgent' al objeto a insertar ---
+      const surgeryPayload = { 
+        ...formData, 
+        is_urgent: isUrgent, 
+        status_id: initialStatus.id, 
+        creator_id: user.id 
+      };
+
+      const { data: newSurgery, error: surgeryError } = await supabase.from('surgeries').insert([surgeryPayload]).select().single();
       if (surgeryError) throw surgeryError;
 
-      const materialsToInsert = selectedMaterials.map(m => ({ surgery_id: newSurgery.id, material_id: m.id, quantity_requested: m.quantity_requested, observations: m.observations }));
+      const materialsToInsert = selectedMaterials.map(m => {
+        if (m.type === 'note') {
+          return { surgery_id: newSurgery.id, material_id: null, quantity_requested: m.quantity_requested, observations: m.observations, free_text_description: m.free_text_description };
+        } else {
+          return { surgery_id: newSurgery.id, material_id: m.id, quantity_requested: m.quantity_requested, observations: m.observations, free_text_description: null };
+        }
+      });
+
       const { error: materialsError } = await supabase.from('surgery_materials').insert(materialsToInsert);
       if (materialsError) throw materialsError;
 
-      // --- NUEVO: REGISTRAR EN EL HISTORIAL ---
-      const { error: historyError } = await supabase
-        .from('surgery_history')
-        .insert({
-          surgery_id: newSurgery.id,
-          user_id: user.id,
-          change_description: 'Pedido creado en estado "Iniciado".',
-          details: { action: 'create', status: initialStatus.name }
-        });
-      
+      const { error: historyError } = await supabase.from('surgery_history').insert({ surgery_id: newSurgery.id, user_id: user.id, change_description: 'Pedido creado en estado "Iniciado".', details: { action: 'create', status: initialStatus.name } });
       if (historyError) {
-        // Si el historial falla, no es crítico. Lo registramos en consola pero continuamos.
         console.error("Error al guardar en el historial:", historyError);
       }
 
@@ -191,18 +220,32 @@ export default function NewSurgeryPage() {
               <div><label htmlFor="client" className="block text-sm font-medium text-gray-800">Cliente</label><input type="text" name="client" id="client" value={formData.client} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500"/></div>
             </div>
             
-            <div className="border-t border-gray-200 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* CAMBIO: type="date" para solo fecha */}
+            <div className="border-t border-gray-200 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div><label htmlFor="surgery_date" className="block text-sm font-medium text-gray-800">Fecha de Cirugía</label><input type="date" name="surgery_date" id="surgery_date" required value={formData.surgery_date} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900"/></div>
               <div><label htmlFor="provider" className="block text-sm font-medium text-gray-800">Proveedor a Solicitar</label><input type="text" name="provider" id="provider" value={formData.provider} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500"/></div>
               <div className="md:col-span-2"><label htmlFor="transport_details" className="block text-sm font-medium text-gray-800">Detalles del Transporte</label><textarea name="transport_details" id="transport_details" rows="3" value={formData.transport_details} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500"></textarea></div>
+              
+              {/* --- NUEVO: Checkbox para marcar como urgente --- */}
+              <div className="md:col-span-2 flex items-center space-x-3">
+                <input
+                  id="is_urgent"
+                  name="is_urgent"
+                  type="checkbox"
+                  checked={isUrgent}
+                  onChange={(e) => setIsUrgent(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <label htmlFor="is_urgent" className="font-medium text-gray-800">
+                  Marcar como Pedido Urgente
+                </label>
+              </div>
             </div>
 
             <div className="border-t border-gray-200 pt-8 space-y-6">
               <h3 className="text-xl font-semibold text-gray-900">Materiales Solicitados</h3>
               
               <div className="relative">
-                <label htmlFor="search_material" className="block text-sm font-medium text-gray-800">1. Buscar Material</label>
+                <label htmlFor="search_material" className="block text-sm font-medium text-gray-800">1. Buscar Material por código o nombre</label>
                 <input type="text" id="search_material" value={searchTerm} onChange={handleSearchChange} placeholder="Escriba para buscar..." className="mt-1 block w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500"/>
                 {isLoadingSearch && <p className="text-sm text-gray-500 mt-1">Buscando...</p>}
                 {searchResults.length > 0 && (
@@ -215,12 +258,26 @@ export default function NewSurgeryPage() {
                 {searchTerm.length >= 3 && !isLoadingSearch && searchResults.length === 0 && (
                   <div className="absolute z-10 w-full mt-1 p-4 bg-white border border-gray-200 rounded-md shadow-lg">
                     <p className="text-center text-gray-500">No se encontraron resultados.</p>
-                    <button type="button" onClick={() => setIsModalOpen(true)} className="w-full mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold">
-                      + Crear Nuevo Material
-                    </button>
+                    <button type="button" onClick={() => setIsModalOpen(true)} className="w-full mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold">+ Crear Nuevo Material</button>
                   </div>
                 )}
               </div>
+
+              <div className="text-center">
+                <button type="button" onClick={() => { setShowNoteInput(true); setMaterialToAdd(null); setSearchTerm(''); setSearchResults([]); }} className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
+                  ¿No encuentras el material? Añádelo como una nota
+                </button>
+              </div>
+
+              {showNoteInput && (
+                <div className="p-4 border-2 border-dashed border-orange-400 bg-orange-50 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div className="md:col-span-3"><h4 className="font-semibold text-gray-900">Añadir Material como Nota</h4></div>
+                  <div className="md:col-span-3"><label className="block text-sm font-medium text-gray-800">1. Descripción del material</label><input type="text" value={noteData.description} onChange={(e) => setNoteData({...noteData, description: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md text-gray-900"/></div>
+                  <div><label className="block text-sm font-medium text-gray-800">2. Cantidad</label><input type="number" min="1" value={noteData.quantity} onChange={(e) => setNoteData({...noteData, quantity: parseInt(e.target.value, 10)})} className="w-full p-2 border border-gray-300 rounded-md text-gray-900"/></div>
+                  <div><label className="block text-sm font-medium text-gray-800">3. Observaciones</label><input type="text" value={noteData.observations} onChange={(e) => setNoteData({...noteData, observations: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md text-gray-900"/></div>
+                  <button type="button" onClick={handleConfirmAddNote} className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 h-10">Añadir Nota al Pedido</button>
+                </div>
+              )}
 
               {materialToAdd && (
                 <div className="p-4 border-2 border-dashed border-indigo-400 bg-indigo-50 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -240,7 +297,19 @@ export default function NewSurgeryPage() {
                     ) : (
                       selectedMaterials.map(m => (
                         <tr key={m.id}>
-                          <td className="py-4 pl-4 pr-3 text-sm sm:pl-0"><div className="font-medium text-gray-900">{m.name}</div><div className="text-gray-500">{m.code}</div></td>
+                          <td className="py-4 pl-4 pr-3 text-sm sm:pl-0">
+                            {m.type === 'formal' ? (
+                              <>
+                                <div className="font-medium text-gray-900">{m.name}</div>
+                                <div className="text-gray-500">{m.code}</div>
+                              </>
+                            ) : (
+                              <div className="italic text-orange-700">
+                                <div className="font-medium">{m.free_text_description}</div>
+                                <div className="text-xs font-normal">(Nota provisoria)</div>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-3 py-4 text-sm font-medium text-gray-900">{m.quantity_requested}</td>
                           <td className="px-3 py-4 text-sm text-gray-500">{m.observations || '-'}</td>
                           <td className="py-4 pl-3 pr-4 text-right text-sm font-medium"><button type="button" onClick={() => handleRemoveMaterial(m.id)} className="text-red-600 hover:text-red-800 font-semibold">Eliminar</button></td>
