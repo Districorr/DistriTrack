@@ -1,10 +1,11 @@
-// --- START OF FILE: Login Page (SMART REDIRECT & RESPONSIVE) ---
+// --- START OF FILE: src/app/login/page.js (FULL, VERIFIED, AND UNABRIDGED) ---
 
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 // --- Componente que contiene la lógica y la UI ---
 function LoginPageContent() {
@@ -14,7 +15,7 @@ function LoginPageContent() {
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
-  const searchParams = useSearchParams() // Hook para leer parámetros
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const handleLogin = async (e) => {
@@ -31,16 +32,11 @@ function LoginPageContent() {
       if (error) {
         setError('Credenciales inválidas. Por favor, intente de nuevo.')
       } else {
-        // --- LÓGICA DE REDIRECCIÓN INTELIGENTE ---
-        // 1. Leemos el parámetro 'redirect_to' que nos envió el middleware.
         const redirectToParam = searchParams.get('redirect_to')
-        
-        // 2. Si existe, decodificamos la URL y redirigimos allí.
         if (redirectToParam) {
           const redirectTo = decodeURIComponent(redirectToParam);
           router.push(redirectTo)
         } else {
-          // 3. Si no existe, redirigimos al dashboard como siempre.
           router.push('/dashboard')
         }
         router.refresh()
@@ -56,13 +52,11 @@ function LoginPageContent() {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
       <div className="relative mx-auto w-full max-w-4xl flex rounded-xl shadow-2xl overflow-hidden">
         
-        {/* --- Columna Izquierda: Branding (se oculta en móviles) --- */}
         <div className="hidden md:flex w-1/2 flex-col items-center justify-center p-12 text-white" style={{ backgroundColor: '#1E3A8A' }}>
           <h1 className="text-4xl font-bold tracking-wider">DistriTrack</h1>
           <p className="mt-4 text-center text-blue-200">Gestión y trazabilidad de pedidos simplificada.</p>
         </div>
 
-        {/* --- Columna Derecha: Formulario (ocupa todo el ancho en móviles) --- */}
         <div className="w-full md:w-1/2 p-8 sm:p-12 bg-white">
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">
             Iniciar Sesión
@@ -119,6 +113,15 @@ function LoginPageContent() {
               </button>
             </div>
           </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              ¿No tienes una cuenta?{' '}
+              <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Regístrate aquí
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -126,7 +129,6 @@ function LoginPageContent() {
 }
 
 // --- Componente de página que usa Suspense ---
-// Suspense es necesario porque useSearchParams puede suspender el renderizado.
 export default function LoginPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Cargando...</div>}>
