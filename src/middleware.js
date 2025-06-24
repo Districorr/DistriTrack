@@ -1,4 +1,4 @@
-// --- START OF FILE: src/middleware.js (FULL, VERIFIED, AND UNABRIDGED) ---
+// --- START OF FILE: src/middleware.js (FULL, VERIFIED, AND WITH ROOT REDIRECT) ---
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
@@ -70,10 +70,21 @@ export async function middleware(request) {
   // Obtenemos la ruta y los parámetros de la URL solicitada.
   const { pathname, search } = request.nextUrl;
 
-  // Definimos las rutas que son accesibles sin iniciar sesión.
+  // --- NUEVO: Regla para la página de inicio (ruta raíz) ---
+  // Esta regla se ejecuta primero para manejar el caso especial de la página principal.
+  if (pathname === '/') {
+    if (session) {
+      // Si hay sesión, redirigir al dashboard.
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    } else {
+      // Si no hay sesión, redirigir al login.
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  // --- Lógica de Redirección Existente ---
   const publicRoutes = ['/login', '/register'];
 
-  // Lógica de Protección de Rutas:
   // 1. Si el usuario NO tiene una sesión activa Y la ruta a la que intenta acceder NO es pública...
   if (!session && !publicRoutes.includes(pathname)) {
     // Guardamos la URL completa a la que quería ir.
