@@ -1,15 +1,19 @@
-// --- START OF FILE: src/middleware.js (MODIFIED FOR SMART REDIRECT) ---
+// --- START OF FILE: src/middleware.js (FULL, VERIFIED, AND UNABRIDGED) ---
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function middleware(request) {
+  // Inicializamos una respuesta base que permite que la petición continúe.
+  // La modificaremos si es necesario redirigir.
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
+  // Creamos un cliente de Supabase que puede operar en el servidor (middleware).
+  // Este cliente necesita acceso a las cookies para gestionar la sesión del usuario.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -19,52 +23,83 @@ export async function middleware(request) {
           return request.cookies.get(name)?.value
         },
         set(name, value, options) {
-          request.cookies.set({ name, value, ...options, })
-          response = NextResponse.next({ request: { headers: request.headers, }, })
-          response.cookies.set({ name, value, ...options, })
+          // Si la sesión se refresca, el middleware actualiza las cookies en la petición y en la respuesta.
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
         },
         remove(name, options) {
-          request.cookies.set({ name, value: '', ...options, })
-          response = NextResponse.next({ request: { headers: request.headers, }, })
-          response.cookies.set({ name, value: '', ...options, })
+          // Si el usuario cierra sesión, el middleware elimina la cookie.
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
         },
       },
     }
   )
 
+  // Obtenemos la sesión actual del usuario.
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
+  // Obtenemos la ruta y los parámetros de la URL solicitada.
   const { pathname, search } = request.nextUrl;
 
-  // --- LÓGICA DE REDIRECCIÓN MEJORADA ---
+  // Definimos las rutas que son accesibles sin iniciar sesión.
+  const publicRoutes = ['/login', '/register'];
 
-  // Si el usuario no está logueado y no está en la página de login
-  if (!session && pathname !== '/login') {
-    // 1. Construimos la URL a la que el usuario quería ir.
-    // Incluye la ruta y todos los parámetros de búsqueda (ej: /dashboard/new-surgery?patient_name=...)
+  // Lógica de Protección de Rutas:
+  // 1. Si el usuario NO tiene una sesión activa Y la ruta a la que intenta acceder NO es pública...
+  if (!session && !publicRoutes.includes(pathname)) {
+    // Guardamos la URL completa a la que quería ir.
     const redirectTo = pathname + search;
-
-    // 2. Creamos la URL de login y le añadimos la URL original como un parámetro.
-    // Usamos encodeURIComponent para asegurar que caracteres especiales como '?' y '&' no rompan la URL.
+    
+    // Creamos la URL de login y le añadimos la URL guardada como un parámetro.
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect_to', encodeURIComponent(redirectTo));
     
-    // 3. Redirigimos al usuario a la página de login con la información guardada.
+    // Redirigimos al usuario a la página de login.
     return NextResponse.redirect(loginUrl);
   }
 
-  // Si el usuario está logueado y está en la página de login, redirigir al dashboard
-  // (Esta lógica no cambia)
-  if (session && pathname === '/login') {
+  // 2. Si el usuario SÍ tiene una sesión activa Y está intentando acceder a una página pública (login o registro)...
+  if (session && publicRoutes.includes(pathname)) {
+    // Lo redirigimos a la página principal del dashboard para evitar que vea el login/registro de nuevo.
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
+  // 3. Si ninguna de las condiciones anteriores se cumple, permitimos que la petición continúe normalmente.
   return response
 }
 
-// Configuración para que el middleware se aplique a todas las rutas excepto las de sistema.
+// Configuración del Matcher:
+// Esto le dice a Next.js en qué rutas debe ejecutarse el middleware.
+// La expresión regular excluye archivos estáticos, imágenes, etc., para optimizar el rendimiento.
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
