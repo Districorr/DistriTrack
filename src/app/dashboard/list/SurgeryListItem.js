@@ -1,21 +1,8 @@
-// --- START OF FILE: src/app/dashboard/list/SurgeryListItem.js (FULL AND ROBUST) ---
+// --- START OF FILE: src/app/dashboard/list/SurgeryListItem.js (FULL, RESPONSIVE, AND ENHANCED) ---
 
 'use client'
 
 import { useMemo } from 'react';
-
-// --- NUEVO: Función de ayuda para convertir HEX a RGBA, previene errores de renderizado ---
-const hexToRgba = (hex, alpha) => {
-  if (!hex || !/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-    return 'rgba(107, 114, 128, 0.15)'; // Devuelve un gris por defecto si el HEX es inválido
-  }
-  let c = hex.substring(1).split('');
-  if (c.length === 3) {
-    c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-  }
-  c = '0x' + c.join('');
-  return `rgba(${(c >> 16) & 255}, ${(c >> 8) & 255}, ${c & 255}, ${alpha})`;
-};
 
 // --- Componente de Ayuda: Tag visual para la lista ---
 const ListTag = ({ text, colorClasses }) => (
@@ -31,9 +18,17 @@ const formatDate = (dateString) => {
   return `${day}/${month}/${year}`;
 };
 
+// --- Componente de Ayuda para la vista móvil ---
+const MobileDataRow = ({ label, children }) => (
+  <div className="flex justify-between items-center text-sm">
+    <span className="font-medium text-gray-500">{label}</span>
+    <span className="text-gray-800">{children}</span>
+  </div>
+);
+
 export default function SurgeryListItem({ surgery, onRowClick }) {
 
-  // --- Lógica para calcular los tags y el título (reutilizada de SurgeryCard) ---
+  // --- Lógica para calcular los tags y el título (sin cambios) ---
   const { tags, title, subtitle } = useMemo(() => {
     const calculatedTags = [];
     if (surgery.is_urgent) calculatedTags.push({ text: 'URGENTE', classes: 'bg-red-100 text-red-700' });
@@ -61,36 +56,47 @@ export default function SurgeryListItem({ surgery, onRowClick }) {
   return (
     <div 
       onClick={onRowClick}
-      className="flex items-center p-3 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors last:border-b-0"
+      className="bg-white border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors last:border-b-0"
     >
-      {/* Columna 1: Pedido */}
-      <div className="w-2/5 pl-2">
-        <p className="font-semibold text-sm text-gray-900 truncate" title={title}>{title}</p>
-        <p className="text-xs text-gray-500 truncate" title={subtitle}>{subtitle}</p>
+      {/* --- VISTA DE ESCRITORIO (md:flex) --- */}
+      <div className="hidden md:flex items-center p-3">
+        <div className="w-2/5 pl-2">
+          <p className="font-semibold text-sm text-gray-900 truncate" title={title}>{title}</p>
+          <p className="text-xs text-gray-500 truncate" title={subtitle}>{subtitle}</p>
+        </div>
+        <div className="w-1/5 text-sm text-gray-600">{formatDate(surgery.surgery_date)}</div>
+        <div className="w-1/5">
+          <span className="px-2 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: surgery.status?.color ? `${surgery.status.color}20` : '#E5E7EB', color: surgery.status?.color || '#4B5563' }}>
+            {surgery.status?.name || 'N/A'}
+          </span>
+        </div>
+        <div className="w-1/5 flex flex-wrap items-center">
+          {tags.length > 0 ? tags.map(tag => <ListTag key={tag.text} text={tag.text} colorClasses={tag.classes} />) : <span className="text-xs text-gray-400">-</span>}
+        </div>
       </div>
 
-      {/* Columna 2: Fecha de Cirugía */}
-      <div className="w-1/5 text-sm text-gray-600">{formatDate(surgery.surgery_date)}</div>
-
-      {/* Columna 3: Estado */}
-      <div className="w-1/5">
-        <span 
-          className="px-2 py-1 text-xs font-semibold rounded-full" 
-          style={{ 
-            backgroundColor: hexToRgba(surgery.status?.color, 0.15),
-            color: surgery.status?.color || '#4B5563'
-          }}
-        >
-          {surgery.status?.name || 'N/A'}
-        </span>
-      </div>
-
-      {/* Columna 4: Etiquetas */}
-      <div className="w-1/5 flex flex-wrap items-center">
-        {tags.length > 0 
-          ? tags.map(tag => <ListTag key={tag.text} text={tag.text} colorClasses={tag.classes} />)
-          : <span className="text-xs text-gray-400">-</span>
-        }
+      {/* --- VISTA MÓVIL (block md:hidden) --- */}
+      <div className="block md:hidden p-4 space-y-3">
+        {/* Sección de Título y Tags */}
+        <div>
+          <div className="flex flex-wrap items-center mb-1">
+            {tags.map(tag => <ListTag key={tag.text} text={tag.text} colorClasses={tag.classes} />)}
+          </div>
+          <p className="font-bold text-gray-900">{title}</p>
+          <p className="text-sm text-gray-600">{subtitle}</p>
+        </div>
+        
+        {/* Sección de Detalles */}
+        <div className="space-y-2 pt-2 border-t border-gray-100">
+          <MobileDataRow label="Fecha CX:">
+            {formatDate(surgery.surgery_date)}
+          </MobileDataRow>
+          <MobileDataRow label="Estado:">
+            <span className="px-2 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: surgery.status?.color ? `${surgery.status.color}20` : '#E5E7EB', color: surgery.status?.color || '#4B5563' }}>
+              {surgery.status?.name || 'N/A'}
+            </span>
+          </MobileDataRow>
+        </div>
       </div>
     </div>
   );
