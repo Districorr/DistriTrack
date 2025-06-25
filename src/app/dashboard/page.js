@@ -10,6 +10,7 @@ import SmartSearchBar from './SmartSearchBar'
 import SettingsMenu from './SettingsMenu'
 import PipelineSettingsModal from './PipelineSettingsModal'
 import FilterModal from './FilterModal'
+import MobileSearchModal from './MobileSearchModal'
 
 // --- Componente para el Menú de Exportación ---
 const ExportMenu = ({ onExport, disabled }) => {
@@ -38,7 +39,8 @@ const ExportMenu = ({ onExport, disabled }) => {
 };
 
 const UserIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-200" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>);
-const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
+const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
+const FilterIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>;
 
 export default function DashboardPage() {
   const [statuses, setStatuses] = useState([]);
@@ -50,6 +52,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOptions, setFilterOptions] = useState({ doctors: [], institutions: [], creators: [], statuses: [], clients: [], providers: [], materials: [] });
@@ -110,6 +113,7 @@ export default function DashboardPage() {
     <>
       <PipelineSettingsModal initialStatuses={allStatusesForSettings} isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
       <FilterModal isOpen={isFilterModalOpen} onClose={() => setIsFilterModalOpen(false)} options={filterOptions} onApply={setActiveFilters} activeFilters={activeFilters} />
+      <MobileSearchModal isOpen={isMobileSearchOpen} onClose={() => setIsMobileSearchOpen(false)} onSearch={setSearchQuery} />
 
       <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
         <header className="relative z-20 flex items-center justify-between p-2 sm:p-3 bg-[#1E3A8A] text-white shadow-lg flex-shrink-0">
@@ -118,7 +122,7 @@ export default function DashboardPage() {
             <div className="text-xl sm:text-2xl font-bold tracking-wider">DistriTrack</div>
           </div>
           
-          <div className="hidden md:flex flex-grow max-w-2xl items-center space-x-2">
+          <div className="hidden md:flex flex-grow max-w-2xl items-center space-x-2 ml-4">
             <SmartSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
             <button onClick={() => setIsFilterModalOpen(true)} className="relative flex-shrink-0 px-4 py-2.5 text-sm font-semibold bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
               Filtros
@@ -127,9 +131,9 @@ export default function DashboardPage() {
             <ExportMenu onExport={(format) => pipelineRef.current?.handleExport(format)} disabled={loading} />
           </div>
           
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <button onClick={() => alert("Abrir búsqueda móvil")} className="p-2 rounded-full hover:bg-white/10 md:hidden"><SearchIcon /></button>
-            <button onClick={() => setIsFilterModalOpen(true)} className="p-2 rounded-full hover:bg-white/10 md:hidden">Filtros</button>
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <button onClick={() => setIsMobileSearchOpen(true)} className="p-2 rounded-lg hover:bg-white/10 md:hidden"><SearchIcon /></button>
+            <button onClick={() => setIsFilterModalOpen(true)} className="p-2 rounded-lg hover:bg-white/10 md:hidden"><FilterIcon /></button>
 
             <Link href="/dashboard/new-surgery" className="px-3 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-500 rounded-md hover:bg-indigo-600 whitespace-nowrap">+ Agregar Pedido</Link>
             
@@ -160,5 +164,5 @@ export default function DashboardPage() {
         </main>
       </div>
     </>
-  )
+  );
 }
