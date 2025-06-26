@@ -1,18 +1,19 @@
-// --- START OF FILE: src/app/login/page.js (FULL, VERIFIED, AND UNABRIDGED) ---
-
 'use client'
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import TrakOwl from './TrakOwl'
 
-// --- Componente que contiene la lógica y la UI ---
 function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [formState, setFormState] = useState('idle')
+  const [errorCount, setErrorCount] = useState(0); // <-- NUEVO: Contador de errores
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -20,118 +21,131 @@ function LoginPageContent() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    setError(null)
-    setIsLoading(true)
+    setFormState('loading')
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-      if (error) {
-        setError('Credenciales inválidas. Por favor, intente de nuevo.')
+    if (error) {
+      setFormState('error')
+      setErrorCount(prev => prev + 1); // <-- NUEVO: Incrementamos el contador
+      setTimeout(() => setFormState('idle'), 2000) // Damos más tiempo para la animación de error
+    } else {
+      setErrorCount(0); // Reseteamos al iniciar sesión con éxito
+      const redirectToParam = searchParams.get('redirect_to')
+      if (redirectToParam) {
+        router.push(decodeURIComponent(redirectToParam))
       } else {
-        const redirectToParam = searchParams.get('redirect_to')
-        if (redirectToParam) {
-          const redirectTo = decodeURIComponent(redirectToParam);
-          router.push(redirectTo)
-        } else {
-          router.push('/dashboard')
-        }
-        router.refresh()
+        router.push('/dashboard')
       }
-    } catch (e) {
-      setError('Ocurrió un error inesperado. Intente más tarde.')
-    } finally {
-      setIsLoading(false)
+      router.refresh()
     }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
-      <div className="relative mx-auto w-full max-w-4xl flex rounded-xl shadow-2xl overflow-hidden">
-        
-        <div className="hidden md:flex w-1/2 flex-col items-center justify-center p-12 text-white" style={{ backgroundColor: '#1E3A8A' }}>
-          <h1 className="text-4xl font-bold tracking-wider">DistriTrack</h1>
-          <p className="mt-4 text-center text-blue-200">Gestión y trazabilidad de pedidos simplificada.</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-800 to-sky-400 p-4 font-sans">
+      <motion.div
+        initial={{ opacity: 0, y: -30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, type: 'spring' }}
+        className="w-full max-w-sm"
+      >
+        <div className="mb-6 flex justify-center">
+          <TrakOwl 
+            state={formState} 
+            isPasswordVisible={showPassword}
+            emailLength={email.length}
+            passwordLength={password.length}
+            errorCount={errorCount} // <-- NUEVO: Pasamos el contador como prop
+          />
         </div>
 
-        <div className="w-full md:w-1/2 p-8 sm:p-12 bg-white">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">
-            Iniciar Sesión
-          </h2>
-          <form onSubmit={handleLogin} className="space-y-6">
+        <div className="bg-white/90 backdrop-blur-lg p-8 rounded-xl shadow-2xl">
+          <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Bienvenido de Vuelta</h1>
+          <p className="text-center text-gray-600 mb-8">Accede a tu cuenta de DistriTrack.</p>
+          
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Correo Electrónico
-              </label>
               <input
                 id="email"
                 name="email"
                 type="email"
+                placeholder="Correo Electrónico"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+                onFocus={() => setFormState('emailFocus')}
+                onBlur={() => setFormState('idle')}
+                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:ring-blue-600 focus:border-blue-600 focus:outline-none text-gray-900 transition"
               />
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Contraseña
-              </label>
+            
+            <div className="relative">
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Contraseña"
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+                onFocus={() => setFormState('passwordFocus')}
+                onBlur={() => setFormState('idle')}
+                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:ring-blue-600 focus:border-blue-600 focus:outline-none text-gray-900 transition"
               />
-            </div>
-            {error && (
-              <div className="p-3 text-center text-sm text-red-800 bg-red-100 border border-red-300 rounded-md">
-                {error}
-              </div>
-            )}
-            <div>
               <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center px-4 py-3 font-semibold text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-70"
-                style={{ backgroundColor: '#1E3A8A' }}
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-blue-600"
               >
-                {isLoading ? (
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  'Iniciar Sesión'
-                )}
+                {showPassword ? <EyeSlashIcon className="h-6 w-6" /> : <EyeIcon className="h-6 w-6" />}
               </button>
+            </div>
+
+            {formState === 'error' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                className="text-center text-sm font-medium text-red-600"
+              >
+                Credenciales incorrectas. Por favor, verifica tus datos.
+              </motion.div>
+            )}
+
+            <div>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={formState === 'loading'}
+                className="w-full px-4 py-3 font-bold text-white bg-blue-700 rounded-lg shadow-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-700 transition-colors disabled:bg-blue-400"
+              >
+                {formState === 'loading' ? 'Ingresando...' : 'Iniciar Sesión'}
+              </motion.button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{' '}
-              <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+              <Link href="/register" className="font-medium text-blue-700 hover:text-blue-600">
                 Regístrate aquí
               </Link>
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
 
-// --- Componente de página que usa Suspense ---
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Cargando...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-800 to-sky-400">Cargando...</div>}>
       <LoginPageContent />
     </Suspense>
   );
