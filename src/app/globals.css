@@ -1,0 +1,33 @@
+/* --- START OF FILE: src/app/globals.css (MODIFIED) --- */
+
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  
+  /* --- NUEVO: Fondo sutil para la aplicación --- */
+  background-color: #f0f2f5; /* Un gris muy claro */
+  background-image: radial-gradient(#d1d5db 0.5px, transparent 0.5px);
+  background-size: 15px 15px;
+}
