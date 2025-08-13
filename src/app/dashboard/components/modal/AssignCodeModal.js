@@ -65,7 +65,7 @@ export default function AssignCodeModal({ surgeryMaterial, onClose, onUpdate }) 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex justify-center items-start z-50 pt-20 px-4">
+      <div className="fixed inset-0 bg-red bg-opacity-60 backdrop-blur-sm flex justify-center items-start z-50 pt-20 px-4">
         <div className="bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
           <header className="p-4 border-b flex justify-between items-center">
             {/* --- CORRECCIÓN CLAVE: Se reemplazan las comillas dobles --- */}
