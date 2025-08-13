@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/Pipeline.js (FULL, UNABRIDGED, WITH DISPLAY LIMIT LOGIC) ---
+// --- START OF FILE: src/app/dashboard/Pipeline.js (CLEANED UP) ---
 
 'use client'
 
@@ -9,9 +9,9 @@ import { SurgeryCard } from './SurgeryCard'
 import SurgeryDetailModal from './SurgeryDetailModal'
 import PurchaseOrderModal from './PurchaseOrderModal'
 import { createClient } from '@/lib/supabase/client'
-import { exportPipelineToPdf, exportPipelineToExcel } from '@/lib/exportUtils'
+// --- CORRECCIÓN: Se eliminan las importaciones de exportUtils ---
 
-// --- Componente de Ayuda: Conversor de Color HEX a RGBA (Completo) ---
+// --- Componente de Ayuda: Conversor de Color HEX a RGBA (sin cambios) ---
 const hexToRgba = (hex, alpha) => {
   if (!hex || !/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
     return 'rgba(107, 114, 128, 1)';
@@ -24,7 +24,7 @@ const hexToRgba = (hex, alpha) => {
   return `rgba(${(c >> 16) & 255}, ${(c >> 8) & 255}, ${c & 255}, ${alpha})`;
 };
 
-// --- Componente de Ayuda: Columna del Pipeline (Completo y Modificado) ---
+// --- Componente de Ayuda: Columna del Pipeline (sin cambios) ---
 function PipelineColumn({ status, surgeries, isAdmin, onCardClick, onColumnFilterClick, totalSurgeriesInStatus, onShowMore }) {
   const { setNodeRef } = useDroppable({ id: status.id });
   const hasMore = surgeries.length < totalSurgeriesInStatus;
@@ -70,7 +70,7 @@ function PipelineColumn({ status, surgeries, isAdmin, onCardClick, onColumnFilte
   );
 }
 
-// --- Componente Principal: Pipeline (Completo y Modificado) ---
+// --- Componente Principal: Pipeline (sin cambios en la lógica principal) ---
 const Pipeline = forwardRef(({ statuses, initialSurgeries, userRole, filters, onColumnFilterClick }, ref) => {
   const [allSurgeries, setAllSurgeries] = useState(initialSurgeries || []);
   const [activeSurgery, setActiveSurgery] = useState(null);
@@ -87,25 +87,13 @@ const Pipeline = forwardRef(({ statuses, initialSurgeries, userRole, filters, on
   useEffect(() => {
     const initialCounts = {};
     statuses.forEach(status => {
-      initialCounts[status.id] = status.display_limit || 10; // Usamos 10 como fallback si no hay límite
+      initialCounts[status.id] = status.display_limit || 10;
     });
     setDisplayCounts(initialCounts);
   }, [statuses]);
 
-  useImperativeHandle(ref, () => ({
-    handleExport(format) {
-      if (format === 'pdf') {
-        exportPipelineToPdf(pipelineContainerRef.current);
-      }
-      if (format === 'excel') {
-        const surgeriesWithStatus = filteredSurgeries.map(s => ({
-          ...s,
-          status: statuses.find(st => st.id === s.status_id)
-        }));
-        exportPipelineToExcel(surgeriesWithStatus);
-      }
-    }
-  }));
+  // --- CORRECCIÓN: Se elimina useImperativeHandle ---
+  // La lógica de exportación ahora vive en el componente padre (DashboardPage)
 
   useEffect(() => { setIsClient(true); }, []);
   useEffect(() => { setAllSurgeries(initialSurgeries || []); }, [initialSurgeries]);
@@ -240,7 +228,7 @@ const Pipeline = forwardRef(({ statuses, initialSurgeries, userRole, filters, on
 
   const handleShowMore = (statusId) => {
     const status = statuses.find(s => s.id === statusId);
-    const increment = status?.display_limit || 10; // Incrementa por el límite o 10 por defecto
+    const increment = status?.display_limit || 10;
     
     setDisplayCounts(prevCounts => ({
       ...prevCounts,
