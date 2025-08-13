@@ -1,8 +1,8 @@
-// --- START OF FILE: src/app/dashboard/SurgeryDetailModal.js (WITH EXPORT ACTIONS) ---
+// --- START OF FILE: src/app/dashboard/SurgeryDetailModal.js (ESLINT FIX) ---
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react'; // Se añade useRef
+import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
@@ -11,7 +11,7 @@ import GeneralInfoPanel from './components/modal/GeneralInfoPanel';
 import MaterialsList from './components/modal/MaterialsList';
 import NotesAndHistory from './components/modal/NotesAndHistory';
 import StatusToggles from './components/modal/StatusToggles';
-import ModalActions from './components/modal/ModalActions'; // Se importa el nuevo componente
+import ModalActions from './components/modal/ModalActions';
 
 export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdate, onCancelSurgery }) {
   const supabase = createClientComponentClient();
@@ -20,7 +20,6 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
   const [editableSurgery, setEditableSurgery] = useState(null);
   const [show, setShow] = useState(false);
 
-  // --- CORRECCIÓN: Se crea una ref para el contenido del modal ---
   const modalContentRef = useRef(null);
 
   useEffect(() => {
@@ -33,7 +32,8 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
         setShow(true);
       });
     }
-  }, [surgery]);
+  // --- CORRECCIÓN CLAVE: Se añade 'isEditing' al array de dependencias ---
+  }, [surgery, isEditing]);
 
   const handleClose = () => {
     setShow(false);
@@ -94,9 +94,8 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
 
   return (
     <div 
-      className={`fixed inset-0 bg-red bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
     >
-      {/* --- CORRECCIÓN: Se adjunta la ref al div que queremos capturar --- */}
       <div 
         ref={modalContentRef}
         className={`bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col transform transition-all duration-300 ${show ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
@@ -106,7 +105,6 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
             <h2 className="text-xl font-bold text-gray-800">
               Detalle del Pedido: {surgery.patient_name}
             </h2>
-            {/* --- CORRECCIÓN: Se añade el componente de acciones --- */}
             <ModalActions surgery={surgery} modalRef={modalContentRef} />
           </div>
           <button onClick={handleClose} className="text-gray-500 hover:text-gray-800">

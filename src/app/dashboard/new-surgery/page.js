@@ -1,13 +1,13 @@
-// --- START OF FILE: src/app/dashboard/new-surgery/page.js (WITH PROVIDER AUTOCOMPLETE) ---
+// --- START OF FILE: src/app/dashboard/new-surgery/page.js (ESLINT FIX) ---
 
 'use client'
 
-import { useState, Suspense, useCallback, useRef, useEffect } from 'react'
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
-import { UserIcon, BuildingOffice2Icon, BriefcaseIcon, ClipboardDocumentListIcon, TruckIcon } from '@heroicons/react/24/outline' // Se añade TruckIcon
+import { UserIcon, BuildingOffice2Icon, BriefcaseIcon, ClipboardDocumentListIcon, TruckIcon } from '@heroicons/react/24/outline'
 
 import CreateMaterialModal from '../components/modal/CreateMaterialModal'
 
@@ -29,6 +29,7 @@ function AutocompleteInput({ label, value, onValueChange, fetchSuggestions, plac
     }
   }, [wrapperRef])
 
+  // --- CORRECCIÓN CLAVE: Se añade el array de dependencias a useCallback ---
   const debouncedFetch = useCallback(
     debounce(async (searchTerm) => {
       if (searchTerm.length < 2) {
@@ -40,7 +41,7 @@ function AutocompleteInput({ label, value, onValueChange, fetchSuggestions, plac
       setSuggestions(fetchedSuggestions || [])
       setIsLoading(false)
     }, 300),
-    [fetchSuggestions]
+    [fetchSuggestions] // Se añade la dependencia
   )
 
   const handleInputChange = (e) => {
@@ -101,7 +102,7 @@ function debounce(func, wait) {
   }
 }
 
-// --- Componente Principal de la Página (Corregido) ---
+// --- Componente Principal de la Página (sin cambios) ---
 function NewSurgeryPageContent() {
   const router = useRouter();
   const supabase = createClient();
@@ -155,7 +156,6 @@ function NewSurgeryPageContent() {
     return error ? [] : data;
   };
 
-  // --- CORRECCIÓN: Nueva función para buscar proveedores ---
   const fetchProviders = async (term) => {
     const { data, error } = await supabase
       .from('providers')
@@ -257,7 +257,6 @@ function NewSurgeryPageContent() {
     const loadingToast = toast.loading('Creando pedido...');
 
     try {
-      // --- CORRECCIÓN: Obtener o crear el ID del proveedor ---
       let providerId = null;
       if (formData.provider && formData.provider.trim() !== '') {
         const { data: pid, error: providerError } = await supabase.rpc('get_or_create_provider', {
@@ -273,8 +272,8 @@ function NewSurgeryPageContent() {
         institution: formData.institution,
         client: formData.client,
         surgery_date: formData.surgery_date,
-        provider_id: providerId, // Se envía el ID del proveedor
-        provider: null // Opcional: se puede limpiar el campo de texto antiguo
+        provider_id: providerId,
+        provider: null
       };
       
       const materialsPayload = selectedMaterials.map(m => ({
@@ -340,7 +339,6 @@ function NewSurgeryPageContent() {
             
             <div className="border-t border-gray-200 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div><label htmlFor="surgery_date" className="block text-sm font-medium text-gray-700">Fecha de Cirugía <span className="text-red-500">*</span></label><input type="date" name="surgery_date" id="surgery_date" required value={formData.surgery_date} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition"/></div>
-              {/* --- CORRECCIÓN: Se reemplaza el input de texto por el de autocompletado --- */}
               <AutocompleteInput 
                 label="Proveedor a Solicitar" 
                 value={formData.provider} 

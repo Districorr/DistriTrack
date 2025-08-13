@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/components/modal/AssignCodeModal.js (FULL AND CORRECTED) ---
+// --- START OF FILE: src/app/dashboard/components/modal/AssignCodeModal.js (ESLINT FIX) ---
 
 'use client';
 
@@ -65,11 +65,11 @@ export default function AssignCodeModal({ surgeryMaterial, onClose, onUpdate }) 
 
   return (
     <>
-      {/* --- CORRECCIÓN: Se añade 'bg-black bg-opacity-60 backdrop-blur-sm' para el efecto --- */}
-      <div className="fixed inset-0 bg-red bg-opacity-30 backdrop-blur-sm flex justify-center items-start z-50 pt-30 px-4">
+      <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex justify-center items-start z-50 pt-20 px-4">
         <div className="bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
           <header className="p-4 border-b flex justify-between items-center">
-            <h3 className="font-bold text-gray-800">Asignar Código a "{surgeryMaterial.free_text_description}"</h3>
+            {/* --- CORRECCIÓN CLAVE: Se reemplazan las comillas dobles --- */}
+            <h3 className="font-bold text-gray-800">Asignar Código a &quot;{surgeryMaterial.free_text_description}&quot;</h3>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-800"><X size={20} /></button>
           </header>
           <div className="p-4">
@@ -106,11 +106,19 @@ export default function AssignCodeModal({ surgeryMaterial, onClose, onUpdate }) 
                 </ul>
               )}
               {!isLoading && searchTerm.length >= 3 && results.length === 0 && (
-                <p className="text-center text-gray-500 py-4">No se encontraron resultados.</p>
+                <div className="text-center py-4">
+                  <p className="text-gray-500 mb-3">No se encontraron resultados para &quot;{searchTerm}&quot;.</p>
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 text-sm"
+                  >
+                    <PlusCircle size={16} className="mr-2" />
+                    Crear Nuevo Artículo
+                  </button>
+                </div>
               )}
             </div>
           </div>
-          {/* --- CORRECCIÓN: Botón "Crear" siempre visible en el footer --- */}
           <footer className="p-4 bg-gray-50 rounded-b-lg flex justify-end">
             <button
               onClick={() => setIsCreateModalOpen(true)}
