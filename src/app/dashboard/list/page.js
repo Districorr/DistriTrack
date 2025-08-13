@@ -1,11 +1,12 @@
-// --- START OF FILE: src/app/dashboard/list/page.js (FULL AND VERIFIED) ---
+// --- START OF FILE: src/app/dashboard/list/page.js (WITH CORRECTED EXPORTS) ---
 
 'use client'
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { exportListToPdf, exportListToExcel } from '@/lib/exportUtils'
+// --- CORRECCIÓN: Se importan las nuevas funciones unificadas ---
+import { exportToPdf, exportToExcel } from '@/lib/exportUtils'
 
 // Componentes Reutilizables
 import SmartSearchBar from '../SmartSearchBar'
@@ -39,12 +40,6 @@ const ExportMenu = ({ onExport, disabled }) => {
   );
 };
 
-const formatDate = (dateString) => {
-  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'N/A';
-  const [year, month, day] = dateString.split('-');
-  return `${day}/${month}/${year}`;
-};
-
 export default function ListPage() {
   const [surgeries, setSurgeries] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -57,10 +52,8 @@ export default function ListPage() {
   const [activeFilters, setActiveFilters] = useState({});
   const [filterOptions, setFilterOptions] = useState({ doctors: [], institutions: [], creators: [], statuses: [], clients: [], providers: [], materials: [] });
   
-  // --- CORREGIDO: Se mueve la creación del cliente de Supabase fuera del useEffect ---
   const supabase = createClient();
 
-  // --- CORREGIDO: Se envuelve getFullSurgeryDetailsQuery en useCallback ---
   const getFullSurgeryDetailsQuery = useCallback(() => {
     return supabase.from('surgeries').select(`*, creator:profiles(full_name), status:pipeline_statuses(*), surgery_materials(id, is_missing, quantity_requested, observations, free_text_description, materials(id, name, code, brand)), surgery_history(*, user:profiles(full_name)), surgery_notes(*, user:profiles(full_name))`);
   }, [supabase]);
@@ -98,7 +91,6 @@ export default function ListPage() {
       setLoading(false);
     }
     getInitialData();
-  // --- CORREGIDO: Se añaden las dependencias correctas ---
   }, [supabase, getFullSurgeryDetailsQuery]);
 
   const filteredSurgeries = useMemo(() => {
@@ -120,20 +112,14 @@ export default function ListPage() {
     });
   }, [searchQuery, activeFilters, surgeries]);
 
+  // --- CORRECCIÓN: Se actualiza la función de exportación ---
   const handleExport = (format) => {
-    const dataToExport = filteredSurgeries.map(surgery => {
-      const tags = [];
-      if (surgery.is_urgent) tags.push('URGENTE');
-      if (surgery.is_rework) tags.push('REPROCESO');
-      if (surgery.surgery_materials.some(m => m.is_missing)) tags.push('FALTANTES');
-      if (surgery.surgery_materials.some(m => !m.materials && m.free_text_description)) tags.push('PROVISORIO');
-      const firstFormal = surgery.surgery_materials.find(m => m.materials);
-      const firstProvisional = surgery.surgery_materials.find(m => m.free_text_description);
-      let title = firstFormal?.materials.name || firstProvisional?.free_text_description || surgery.patient_name;
-      return { title: title, patient: surgery.patient_name, surgery_date: formatDate(surgery.surgery_date), status: surgery.status?.name || 'N/A', tags: tags.join(', ') || '-', };
-    });
-    if (format === 'pdf') { exportListToPdf(dataToExport); }
-    if (format === 'excel') { exportListToExcel(dataToExport); }
+    if (format === 'pdf') { 
+      exportToPdf(filteredSurgeries, 'Vista de Lista'); 
+    }
+    if (format === 'excel') { 
+      exportToExcel(filteredSurgeries); 
+    }
   };
 
   const handleToggleTag = async () => console.log("Acción no implementada");

@@ -1,10 +1,11 @@
-// --- START OF FILE: src/app/dashboard/materials-summary/MaterialsSummaryClient.js (FULL AND VERIFIED) ---
+// --- START OF FILE: src/app/dashboard/materials-summary/MaterialsSummaryClient.js (WITH CORRECTED EXPORTS) ---
 
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { exportSummaryToPdf, exportDetailsToExcel } from '@/lib/exportUtils';
+// --- CORRECCIÓN: Se importan las nuevas funciones unificadas ---
+import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
 
 const ExportMenu = ({ onExport, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,7 +21,8 @@ const ExportMenu = ({ onExport, disabled }) => {
         Exportar
         <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
-      {isOpen && (<div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5"><div className="py-1"><a href="#" onClick={(e) => { e.preventDefault(); onExport('summary_pdf'); setIsOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Resumen como PDF</a><a href="#" onClick={(e) => { e.preventDefault(); onExport('details_excel'); setIsOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Desglose como Excel (con colores)</a></div></div>)}
+      {/* --- CORRECCIÓN: Se actualizan las opciones del menú --- */}
+      {isOpen && (<div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5"><div className="py-1"><a href="#" onClick={(e) => { e.preventDefault(); onExport('pdf'); setIsOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Resumen como PDF</a><a href="#" onClick={(e) => { e.preventDefault(); onExport('excel'); setIsOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Todos los Pedidos (Excel)</a></div></div>)}
     </div>
   );
 };
@@ -31,20 +33,24 @@ export default function MaterialsSummaryClient({ initialSummary, statuses }) {
   const [selectedStatusIds, setSelectedStatusIds] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // --- CORREGIDO: Se mueve la creación del cliente de Supabase fuera del useEffect ---
   const supabase = createClient();
 
-  // --- CORREGIDO: Se envuelve la lógica de carga en un useCallback y se añaden dependencias al useEffect ---
   const fetchFilteredData = useCallback(async () => {
     setLoading(true);
     const filter = selectedStatusIds.length > 0 ? selectedStatusIds : null;
+    
+    // La consulta de resumen se mantiene igual
     const summaryPromise = supabase.rpc('get_material_summary', { status_ids_array: filter });
-    let detailsQuery = supabase.from('surgeries').select('*, status:pipeline_statuses(*), surgery_materials(quantity_requested, materials(name, code))');
+    
+    // La consulta de detalles ahora debe ser la completa para que exportToExcel funcione
+    let detailsQuery = supabase.from('surgeries').select('*, creator:profiles(*), status:pipeline_statuses(*), provider_data:providers(*), surgery_materials(*, materials(*)), surgery_notes(*, user:profiles(*))');
     if (filter) {
       detailsQuery = detailsQuery.in('status_id', filter);
     }
     const detailsPromise = detailsQuery;
+
     const [summaryRes, detailsRes] = await Promise.all([summaryPromise, detailsPromise]);
+    
     if (summaryRes.error || detailsRes.error) {
       console.error("Error fetching data:", summaryRes.error || detailsRes.error);
       alert("No se pudo actualizar el resumen.");
@@ -59,10 +65,23 @@ export default function MaterialsSummaryClient({ initialSummary, statuses }) {
     fetchFilteredData();
   }, [fetchFilteredData]);
 
+  // --- CORRECCIÓN: Se actualiza la función de exportación ---
   const handleExport = (format) => {
-    const selectedStatuses = statuses.filter(s => selectedStatusIds.includes(s.id));
-    if (format === 'summary_pdf') { exportSummaryToPdf(summaryData, selectedStatuses); }
-    if (format === 'details_excel') { exportDetailsToExcel(detailedSurgeries, selectedStatuses); }
+    if (format === 'pdf') {
+      // Creamos un PDF simple a partir de los datos del resumen
+      const doc = new jsPDF();
+      doc.text("Resumen de Materiales", 14, 22);
+      autoTable(doc, {
+        head: [['Material', 'Código', 'Cantidad Total']],
+        body: summaryData.map(item => [item.material_name, item.material_code, item.total_quantity]),
+        startY: 30,
+      });
+      doc.save('resumen_materiales.pdf');
+    }
+    if (format === 'excel') { 
+      // Usamos la nueva función de Excel con los datos detallados
+      exportToExcel(detailedSurgeries); 
+    }
   };
 
   const handleStatusToggle = (statusId) => {
