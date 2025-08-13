@@ -94,7 +94,7 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 bg-red bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         ref={modalContentRef}
