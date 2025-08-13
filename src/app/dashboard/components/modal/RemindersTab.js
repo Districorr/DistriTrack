@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/components/modal/RemindersTab.js (NEW FILE) ---
+// --- START OF FILE: src/app/dashboard/components/modal/RemindersTab.js (COLOR FIX) ---
 
 'use client';
 
@@ -19,7 +19,7 @@ export default function RemindersTab({ surgeryId, onUpdate }) {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('reminders')
-        .select('*')
+        .select('*, user:profiles(full_name)') // Pedimos el nombre del usuario
         .eq('surgery_id', surgeryId)
         .order('remind_at', { ascending: true });
 
@@ -60,7 +60,7 @@ export default function RemindersTab({ surgeryId, onUpdate }) {
         note: newReminder.note,
         remind_at: newReminder.remind_at,
       })
-      .select()
+      .select('*, user:profiles(full_name)') // Pedimos los datos completos al insertar
       .single();
 
     if (error) {
@@ -100,22 +100,24 @@ export default function RemindersTab({ surgeryId, onUpdate }) {
 
   return (
     <div>
-      {/* Formulario para crear nuevo recordatorio */}
       <form onSubmit={handleAddReminder} className="p-4 border-b border-gray-200 space-y-3">
         <h4 className="font-semibold text-gray-800">Añadir Nuevo Recordatorio</h4>
         <div>
-          <label htmlFor="remind_at" className="text-xs font-medium text-gray-600">Fecha y Hora</label>
+          {/* --- CORRECCIÓN: Se añade 'text-gray-700' a la etiqueta --- */}
+          <label htmlFor="remind_at" className="text-sm font-medium text-gray-700">Fecha y Hora</label>
           <input
             type="datetime-local"
             id="remind_at"
             name="remind_at"
             value={newReminder.remind_at}
             onChange={handleInputChange}
-            className="w-full p-2 border border-gray-300 rounded-md mt-1"
+            // --- CORRECCIÓN: Se añade 'text-gray-900' al input ---
+            className="w-full p-2 border border-gray-300 rounded-md mt-1 text-gray-900"
           />
         </div>
         <div>
-          <label htmlFor="note" className="text-xs font-medium text-gray-600">Nota</label>
+          {/* --- CORRECCIÓN: Se añade 'text-gray-700' a la etiqueta --- */}
+          <label htmlFor="note" className="text-sm font-medium text-gray-700">Nota</label>
           <textarea
             id="note"
             name="note"
@@ -123,7 +125,8 @@ export default function RemindersTab({ surgeryId, onUpdate }) {
             onChange={handleInputChange}
             rows="2"
             placeholder="Ej: Llamar al proveedor para confirmar entrega"
-            className="w-full p-2 border border-gray-300 rounded-md mt-1"
+            // --- CORRECCIÓN: Se añade 'text-gray-900' y 'placeholder-gray-400' ---
+            className="w-full p-2 border border-gray-300 rounded-md mt-1 text-gray-900 placeholder-gray-400"
           />
         </div>
         <button type="submit" disabled={isSaving} className="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 disabled:bg-indigo-400">
@@ -131,15 +134,18 @@ export default function RemindersTab({ surgeryId, onUpdate }) {
         </button>
       </form>
 
-      {/* Lista de recordatorios */}
       <div className="p-4 space-y-4">
-        {isLoading ? <p>Cargando...</p> : reminders.map(reminder => (
+        {isLoading ? <p className="text-center text-gray-500">Cargando...</p> : reminders.map(reminder => (
           <div key={reminder.id} className={`p-3 rounded-md flex items-start gap-4 ${reminder.is_completed ? 'bg-gray-100' : 'bg-yellow-50'}`}>
             <div className={`mt-1 ${reminder.is_completed ? 'text-gray-400' : 'text-yellow-500'}`}><Bell size={20} /></div>
             <div className="flex-grow">
               <p className={`text-sm text-gray-800 ${reminder.is_completed ? 'line-through text-gray-500' : ''}`}>{reminder.note}</p>
               <p className={`text-xs mt-1 ${reminder.is_completed ? 'text-gray-400' : 'text-yellow-700'}`}>
                 {new Date(reminder.remind_at).toLocaleString('es-AR')}
+              </p>
+              {/* --- CORRECCIÓN: Se añade el nombre del creador del recordatorio --- */}
+              <p className="text-xs mt-1 text-gray-400">
+                Creado por: {reminder.user?.full_name || 'Usuario desconocido'}
               </p>
             </div>
             <div className="flex items-center gap-2">
