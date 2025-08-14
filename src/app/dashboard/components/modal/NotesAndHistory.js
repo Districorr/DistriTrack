@@ -1,11 +1,11 @@
-// --- START OF FILE: src/app/dashboard/components/modal/NotesAndHistory.js (WITH REMINDERS TAB) ---
+/// --- START OF FILE: src/app/dashboard/components/modal/NotesAndHistory.js (FINAL FIX) ---
 
 'use client';
 
 import { useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import toast from 'react-hot-toast';
-// --- CORRECCIÓN: Importamos el nuevo componente de recordatorios ---
+// --- CORRECCIÓN CLAVE: Se usa el cliente unificado de la app ---
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'react-hot-toast';
 import RemindersTab from './RemindersTab';
 
 // --- Componente de Ayuda: Botón de Pestaña (sin cambios) ---
@@ -51,12 +51,13 @@ const NoteItem = ({ note }) => {
   );
 };
 
-// --- Componente de Ayuda: Formulario para Añadir Nota (sin cambios) ---
+// --- Componente de Ayuda: Formulario para Añadir Nota (Corregido) ---
 const AddNoteForm = ({ surgeryId, userRole, onNoteAdded }) => {
   const [content, setContent] = useState('');
   const [isVisible, setIsVisible] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = createClientComponentClient();
+  // --- CORRECCIÓN CLAVE: Se usa el cliente unificado ---
+  const supabase = createClient();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -127,7 +128,7 @@ const AddNoteForm = ({ surgeryId, userRole, onNoteAdded }) => {
   );
 };
 
-// --- Componente Principal (Modificado) ---
+// --- Componente Principal (sin cambios) ---
 export default function NotesAndHistory({ surgery, onUpdate, userRole }) {
   const [activeTab, setActiveTab] = useState('notes');
 
@@ -140,7 +141,6 @@ export default function NotesAndHistory({ surgery, onUpdate, userRole }) {
         <nav className="-mb-px flex space-x-4" aria-label="Tabs">
           <TabButton isActive={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>Notas</TabButton>
           <TabButton isActive={activeTab === 'history'} onClick={() => setActiveTab('history')}>Historial</TabButton>
-          {/* --- CORRECCIÓN: Se añade la nueva pestaña de Recordatorios --- */}
           <TabButton isActive={activeTab === 'reminders'} onClick={() => setActiveTab('reminders')}>Recordatorios</TabButton>
         </nav>
       </div>
@@ -177,7 +177,6 @@ export default function NotesAndHistory({ surgery, onUpdate, userRole }) {
             )}
           </ul>
         )}
-        {/* --- CORRECCIÓN: Se añade el renderizado condicional para la nueva pestaña --- */}
         {activeTab === 'reminders' && (
           <RemindersTab surgeryId={surgery.id} onUpdate={onUpdate} />
         )}
