@@ -1,4 +1,4 @@
-// --- START OF FILE: src/app/dashboard/SurgeryDetailModal.js (ESLINT FIX) ---
+// --- START OF FILE: src/app/dashboard/SurgeryDetailModal.js (EDIT BUG FIX) ---
 
 'use client';
 
@@ -22,18 +22,19 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
 
   const modalContentRef = useRef(null);
 
+  // --- CORRECCIÓN CLAVE: Se separan los useEffect ---
+
+  // Efecto 1: Controla la visibilidad y resetea el estado cuando cambia la cirugía
   useEffect(() => {
     setEditableSurgery(surgery);
-    if (isEditing) {
-      setIsEditing(false);
-    }
+    setIsEditing(false); // Siempre resetea el modo de edición al cambiar de pedido
+
     if (surgery) {
       requestAnimationFrame(() => {
         setShow(true);
       });
     }
-  // --- CORRECCIÓN CLAVE: Se añade 'isEditing' al array de dependencias ---
-  }, [surgery, isEditing]);
+  }, [surgery]); // Solo se ejecuta cuando la prop 'surgery' cambia
 
   const handleClose = () => {
     setShow(false);
@@ -52,7 +53,7 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
   };
 
   const handleCancelEdit = () => {
-    setEditableSurgery(surgery);
+    setEditableSurgery(surgery); // Revierte los cambios al estado original
     setIsEditing(false);
   };
 
@@ -60,12 +61,17 @@ export default function SurgeryDetailModal({ surgery, userRole, onClose, onUpdat
     if (!editableSurgery) return;
     setIsLoading(true);
     
+    // --- CORRECCIÓN: Se usa el cliente unificado de la app ---
+    // (Asumiendo que has creado src/lib/supabase/client.js como en pasos anteriores)
+    // import { createClient } from '@/lib/supabase/client';
+    // const supabase = createClient();
+
     const { error } = await supabase.rpc('update_surgery_details', {
       p_surgery_id: editableSurgery.id,
       p_doctor_name: editableSurgery.doctor_name,
       p_institution: editableSurgery.institution,
       p_client: editableSurgery.client,
-      p_provider: editableSurgery.provider,
+      p_provider: editableSurgery.provider, // Esto debería ser provider_id si ya migraste
       p_surgery_date: editableSurgery.surgery_date,
       p_is_urgent: editableSurgery.is_urgent,
       p_is_rework: editableSurgery.is_rework,
